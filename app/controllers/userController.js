@@ -1,12 +1,13 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { setAuthCookie } = require('../utils/setAuthCookie'); // ✅ use the new util
+const { setAuthCookie } = require('../utils/setAuthCookie');
+const apiResponse = require('../middleware/apiResponse'); // ✅ Only this line should exist
 
 // JWT utility functions
 const generateTokens = (user) => {
   const accessToken = jwt.sign(
     {
-      userId: user._id.toString(), // Use _id instead of userId
+      userId: user._id.toString(),
       email: user.email,
       role: user.role
     },
@@ -15,7 +16,7 @@ const generateTokens = (user) => {
   );
 
   const refreshToken = jwt.sign(
-    { userId: user._id.toString() }, // Use _id instead of userId
+    { userId: user._id.toString() },
     process.env.JWT_REFRESH_SECRET,
     { expiresIn: '7d' }
   );
@@ -37,7 +38,7 @@ class UserController {
       res.redirect(ssoUrl);
     } catch (error) {
       console.error('SSO initiation error:', error);
-      res.status(500).json({ error: 'Failed to initiate SSO' });
+      return apiResponse.error(res, 'Failed to initiate SSO', 500);
     }
   }
 
@@ -47,7 +48,7 @@ class UserController {
       const { code } = req.query;
 
       if (!code) {
-        return res.status(400).json({ error: 'Authorization code missing' });
+        return apiResponse.error(res, 'Authorization code missing', 400);
       }
 
       // In production, exchange code for user info with SSO provider
@@ -91,12 +92,12 @@ class UserController {
       user.refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       await user.save();
 
-      setAuthCookie(res, accessToken); // ✅ use util
+      setAuthCookie(res, accessToken);
       res.redirect('/dashboard');
 
     } catch (error) {
       console.error('SSO callback error:', error);
-      res.status(500).json({ error: 'Authentication failed' });
+      return apiResponse.error(res, 'Authentication failed', 500);
     }
   }
 
@@ -106,13 +107,13 @@ class UserController {
       const { email, password } = req.body;
 
       if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password required' });
+        return apiResponse.error(res, 'Email and password required', 400);
       }
 
       const user = await User.findOne({ email, isActive: true });
 
       if (!user || !await user.comparePassword(password)) {
-        return res.status(401).json({ error: 'Invalid credentials' });
+        return apiResponse.error(res, 'Invalid credentials', 401);
       }
 
       const { accessToken, refreshToken } = generateTokens(user);
@@ -123,21 +124,20 @@ class UserController {
       user.lastLogin = new Date();
       await user.save();
 
-      setAuthCookie(res, accessToken); // ✅ use util
+      setAuthCookie(res, accessToken);
 
-      res.json({
-        success: true,
+      return apiResponse.success(res, {
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           role: user.role,
           profile: user.profile
         }
-      });
+      }, 'Login successful');
 
     } catch (error) {
       console.error('Login error:', error);
-      res.status(500).json({ error: 'Login failed' });
+      return apiResponse.error(res, 'Login failed', 500);
     }
   }
 
@@ -147,16 +147,16 @@ class UserController {
       const { email, password, firstName, lastName } = req.body;
 
       if (!email || !password || !firstName || !lastName) {
-        return res.status(400).json({ error: 'All fields are required' });
+        return apiResponse.error(res, 'All fields are required', 400);
       }
 
       if (password.length < 8) {
-        return res.status(400).json({ error: 'Password must be at least 8 characters' });
+        return apiResponse.error(res, 'Password must be at least 8 characters', 400);
       }
 
       const existingUser = await User.findOne({ email });
       if (existingUser) {
-        return res.status(409).json({ error: 'User already exists' });
+        return apiResponse.error(res, 'User already exists', 409);
       }
 
       const user = new User({
@@ -173,21 +173,20 @@ class UserController {
       user.refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       await user.save();
 
-      setAuthCookie(res, accessToken); // ✅ use util
+      setAuthCookie(res, accessToken);
 
-      res.status(201).json({
-        success: true,
+      return apiResponse.success(res, {
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           role: user.role,
           profile: user.profile
         }
-      });
+      }, 'Registration successful', 201);
 
     } catch (error) {
       console.error('Registration error:', error);
-      res.status(500).json({ error: 'Registration failed' });
+      return apiResponse.error(res, 'Registration failed', 500);
     }
   }
 
@@ -197,7 +196,7 @@ class UserController {
       const { refreshToken } = req.body;
 
       if (!refreshToken) {
-        return res.status(401).json({ error: 'Refresh token required' });
+        return apiResponse.error(res, 'Refresh token required', 401);
       }
 
       const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
@@ -208,7 +207,7 @@ class UserController {
       });
 
       if (!user) {
-        return res.status(403).json({ error: 'Invalid refresh token' });
+        return apiResponse.error(res, 'Invalid refresh token', 403);
       }
 
       const { accessToken, refreshToken: newRefreshToken } = generateTokens(user);
@@ -217,16 +216,15 @@ class UserController {
       user.refreshTokenExpiry = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
       await user.save();
 
-      setAuthCookie(res, accessToken); // ✅ use util
+      setAuthCookie(res, accessToken);
 
-      res.json({
-        success: true,
+      return apiResponse.success(res, {
         refreshToken: newRefreshToken
-      });
+      }, 'Token refreshed successfully');
 
     } catch (error) {
       console.error('Token refresh error:', error);
-      res.status(403).json({ error: 'Token refresh failed' });
+      return apiResponse.error(res, 'Token refresh failed', 403);
     }
   }
 
@@ -239,11 +237,11 @@ class UserController {
       );
 
       res.clearCookie('token');
-      res.json({ success: true, message: 'Logged out successfully' });
+      return apiResponse.success(res, null, 'Logged out successfully');
 
     } catch (error) {
       console.error('Logout error:', error);
-      res.status(500).json({ error: 'Logout failed' });
+      return apiResponse.error(res, 'Logout failed', 500);
     }
   }
 
@@ -251,19 +249,19 @@ class UserController {
   static async getCurrentUser(req, res) {
     try {
       const user = await User.findById(req.user.userId)
-        .select('-password -refreshToken'); // removed .populate for now
+        .select('-password -refreshToken');
 
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return apiResponse.error(res, 'User not found', 404);
       }
 
-      res.json({
+      return apiResponse.success(res, {
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           role: user.role,
           profile: user.profile,
-          testHistory: user.testHistory, // still returns array, just no populated data
+          testHistory: user.testHistory,
           lastLogin: user.lastLogin,
           ssoProvider: user.ssoProvider
         }
@@ -271,7 +269,7 @@ class UserController {
 
     } catch (error) {
       console.error('Get user error:', error);
-      res.status(500).json({ error: 'Failed to get user info' });
+      return apiResponse.error(res, 'Failed to get user info', 500);
     }
   }
 
@@ -290,19 +288,26 @@ class UserController {
 
       const total = await User.countDocuments({ isActive: true });
 
-      res.json({
-        users,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
+      const formattedUsers = users.map(user => ({
+        _id: user._id,
+        email: user.email,
+        role: user.role,
+        profile: user.profile,
+        lastLogin: user.lastLogin,
+        ssoProvider: user.ssoProvider,
+        createdAt: user.createdAt
+      }));
+
+      return apiResponse.paginated(res, formattedUsers, {
+        page,
+        limit,
+        total,
+        pages: Math.ceil(total / limit)
       });
 
     } catch (error) {
       console.error('Get all users error:', error);
-      res.status(500).json({ error: 'Failed to get users' });
+      return apiResponse.error(res, 'Failed to get users', 500);
     }
   }
 
@@ -314,7 +319,7 @@ class UserController {
 
       const user = await User.findById(userId);
       if (!user) {
-        return res.status(404).json({ error: 'User not found' });
+        return apiResponse.error(res, 'User not found', 404);
       }
 
       if (firstName) user.profile.firstName = firstName;
@@ -323,19 +328,18 @@ class UserController {
 
       await user.save();
 
-      res.json({
-        success: true,
+      return apiResponse.success(res, {
         user: {
-          id: user._id,
+          _id: user._id,
           email: user.email,
           role: user.role,
           profile: user.profile
         }
-      });
+      }, 'Profile updated successfully');
 
     } catch (error) {
       console.error('Profile update error:', error);
-      res.status(500).json({ error: 'Failed to update profile' });
+      return apiResponse.error(res, 'Failed to update profile', 500);
     }
   }
 }
