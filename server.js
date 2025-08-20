@@ -1,235 +1,276 @@
+// server.js - Fixed MongoDB connection options
 const express = require('express');
 const mongoose = require('mongoose');
-const morgan = require('morgan');
 const helmet = require('helmet');
-const cookieParser = require('cookie-parser');
+const cors = require('cors');
+const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
-const dotenv = require('dotenv');
-const cors = require("cors");
-
-// Load environment variables
-dotenv.config();
+const cookieParser = require('cookie-parser');
+const { Server } = require('socket.io');
+const http = require('http');
+const passport = require('passport');
+require('dotenv').config();
+require('./config/passport'); // Initialize Passport
 
 // Initialize Express app
 const app = express();
-console.log('🚀 Starting EngineerSmith server...');
-
-// Allow your Vite dev server and production domain
-const allowedOrigins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://engineersmith.com"
-];
-
-app.use(
-    cors({
-        origin: allowedOrigins,
-        credentials: true, // allow cookies
-        methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization"],
-    })
-);
-
-// Basic middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true }));
-app.use(cookieParser());
-app.use(morgan('dev'));
-app.use(helmet());
-
-// Rate limiting
-const globalLimiter = rateLimit({
-    windowMs: process.env.RATE_LIMIT_WINDOW_MS || 15 * 60 * 1000,
-    max: process.env.RATE_LIMIT_MAX_REQUESTS || 1000,
-    message: { error: 'Too many requests, please try again later.' },
-    standardHeaders: true,
-    legacyHeaders: false,
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: process.env.NODE_ENV === 'production' ? 'https://engineersmith.com' : 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    credentials: true, // Important for cookies
+  },
 });
-app.use(globalLimiter);
 
-// MongoDB connection
-const connectToMongo = async () => {
-    try {
-        await mongoose.connect(process.env.MONGO_URL);
-        console.log('✅ Connected to MongoDB');
-    } catch (error) {
-        console.error('❌ MongoDB connection error:', error.message);
-        process.exit(1);
+// Enhanced security middleware
+app.use(helmet({
+  crossOriginEmbedderPolicy: false, // Allow for better cookie handling
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      scriptSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+    },
+  },
+}));
+
+// CORS with enhanced cookie support
+app.use(cors({
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) return callback(null, true);
+    
+    const allowedOrigins = [
+      'http://localhost:5173',       // Vite dev server
+      'http://localhost:3000',       // Backup/alternative dev port
+      'http://localhost:3001',       // Another common dev port
+      'https://engineersmith.com',
+      'https://www.engineersmith.com'
+    ];
+    
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
     }
-};
+  },
+  credentials: true, // Essential for cookies
+  optionsSuccessStatus: 200,
+}));
+
+app.use(morgan('dev'));
+
+// Enhanced body parsing with size limits
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Enhanced cookie parser with security options
+app.use(cookieParser(process.env.COOKIE_SECRET || 'fallback-secret'));
+
+// Passport initialization
+app.use(passport.initialize());
+
+// Trust proxy for production (important for secure cookies behind load balancer)
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
+// Rate limiting with different tiers
+const authLimiter = rateLimit({
+  windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 minutes
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS, 10) || 5, // 5 attempts per window
+  message: {
+    error: 'Too many authentication attempts, please try again later.',
+    retryAfter: Math.ceil(900000 / 1000 / 60), // minutes
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 minutes
+  max: parseInt(process.env.API_RATE_LIMIT_MAX_REQUESTS, 10) || 1000,
+  message: {
+    error: 'Too many API requests, please try again later.',
+    retryAfter: Math.ceil(900000 / 1000 / 60), // minutes
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Apply rate limiting
+app.use('/auth/login', authLimiter);
+app.use('/auth/register', authLimiter);
+app.use('/auth/refresh-token', authLimiter);
+app.use('/api', apiLimiter);
 
 // Import routes
-const authRoutes = require('./app/routes/auth');
-const userRoutes = require('./app/routes/users');
-const questionRoutes = require('./app/routes/questions');
-const adminRoutes = require('./app/routes/admin');
-const testRoutes = require('./app/routes/tests');
-const { authenticateToken } = require('./app/middleware/auth');
+const superadminRoutes = require('./routes/superadmin');
+const adminRoutes = require('./routes/admin');
+const authRoutes = require('./routes/auth');
+const usersRoutes = require('./routes/users');
+const questionsRoutes = require('./routes/questions');
+const testsRoutes = require('./routes/tests');
+const testSessionsRoutes = require('./routes/testSessions');
+const resultsRoutes = require('./routes/results');
 
-// Bootstrap admin user (only works if no admin exists)
-app.post('/api/bootstrap-admin', async (req, res) => {
-    try {
-        const { email, password, firstName, lastName, bootstrapSecret } = req.body;
-
-        // Check bootstrap secret
-        if (bootstrapSecret !== process.env.BOOTSTRAP_SECRET && bootstrapSecret !== 'bootstrap123') {
-            return res.status(403).json({ error: 'Invalid bootstrap secret' });
-        }
-
-        const User = require('./app/models/User');
-
-        // Check if any admin user already exists
-        const existingAdmin = await User.findOne({ role: 'admin' });
-        if (existingAdmin) {
-            return res.status(409).json({ error: 'Admin user already exists. Use normal user creation instead.' });
-        }
-
-        // Validate required fields
-        if (!email || !password || !firstName || !lastName) {
-            return res.status(400).json({ error: 'All fields required' });
-        }
-
-        if (password.length < 8) {
-            return res.status(400).json({ error: 'Password must be at least 8 characters' });
-        }
-
-        // Create first admin user
-        const admin = new User({
-            email,
-            password,
-            role: 'admin',
-            profile: { firstName, lastName }
-        });
-
-        await admin.save();
-
-        res.status(201).json({
-            success: true,
-            message: 'Bootstrap admin user created successfully',
-            user: {
-                id: admin._id,
-                email: admin.email,
-                role: admin.role,
-                profile: admin.profile
-            }
-        });
-
-    } catch (error) {
-        console.error('Bootstrap admin error:', error);
-        res.status(500).json({ error: 'Failed to create bootstrap admin' });
-    }
-});
-
-// Health check route (public)
-app.get('/health', async (req, res) => {
-    try {
-        const dbStatus = mongoose.connection.readyState === 1 ? 'Connected' : 'Disconnected';
-        const memoryUsage = process.memoryUsage();
-
-        res.json({
-            status: 'OK',
-            message: 'EngineerSmith server is running',
-            timestamp: new Date().toISOString(),
-            mongodb: dbStatus,
-            uptime: Math.floor(process.uptime()),
-            memory: {
-                used: Math.round(memoryUsage.rss / 1024 / 1024) + ' MB',
-                heap: Math.round(memoryUsage.heapUsed / 1024 / 1024) + ' MB'
-            },
-            environment: process.env.NODE_ENV || 'development'
-        });
-    } catch (error) {
-        res.status(500).json({
-            status: 'Error',
-            message: 'Health check failed',
-            error: error.message
-        });
-    }
-});
-
-// API Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api/questions', questionRoutes);
+// Mount routes
+app.use('/superadmin', superadminRoutes);
 app.use('/api/admin', adminRoutes);
-app.use('/api/tests', testRoutes);
+app.use('/api/users', usersRoutes);
+app.use('/auth', authRoutes);
+app.use('/api/questions', questionsRoutes);
+app.use('/api/tests', testsRoutes);
+app.use('/api/test-sessions', testSessionsRoutes);
+app.use('/api/results', resultsRoutes);
 
-// Test protected route
-app.get('/api/protected', authenticateToken, (req, res) => {
-    res.json({
-        message: 'Authentication working!',
-        user: req.user,
-        timestamp: new Date().toISOString()
-    });
+// Health check endpoint
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'EngineerSmith API server is running',
+    version: '1.0.0',
+    environment: process.env.NODE_ENV || 'development',
+    timestamp: new Date().toISOString(),
+  });
 });
 
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({
-        error: 'Route not found',
-        path: req.path,
-        method: req.method,
-        availableEndpoints: [
-            'GET /health - Server health check',
-            'POST /api/auth/login - User login',
-            'POST /api/auth/register - User registration',
-            'GET /api/auth/me - Current user info',
-            'GET /api/questions - List questions',
-            'POST /api/questions - Create question',
-            'GET /api/tests - List tests',          // NEW
-            'POST /api/tests - Create test',        // NEW
-            'GET /api/admin/dashboard - Admin dashboard',
-            'GET /api/protected - Test authentication'
-        ]
-    });
+// Enhanced error handling middleware
+app.use((err, req, res, next) => {
+  // Log error details
+  console.error(`Error ${err.status || 500}: ${err.message}`);
+  if (process.env.NODE_ENV === 'development') {
+    console.error(err.stack);
+  }
+
+  // Don't expose internal errors in production
+  const isDevelopment = process.env.NODE_ENV === 'development';
+  const status = err.status || 500;
+  const message = status === 500 && !isDevelopment 
+    ? 'Internal server error' 
+    : err.message;
+
+  res.status(status).json({
+    success: false,
+    error: message,
+    ...(isDevelopment && { stack: err.stack }),
+  });
 });
 
-// Global error handler
-app.use((error, req, res, next) => {
-    console.error('Unhandled error:', error);
-    res.status(500).json({
-        error: 'Internal server error',
-        message: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+// Handle 404 routes
+app.use('*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'Route not found',
+    path: req.originalUrl,
+  });
+});
+
+// Enhanced Socket.IO with authentication
+io.use(async (socket, next) => {
+  try {
+    const token = socket.handshake.auth.token || 
+                  socket.handshake.headers.cookie?.match(/accessToken=([^;]+)/)?.[1];
+    
+    if (!token) {
+      return next(new Error('Authentication token required'));
+    }
+
+    const jwt = require('jsonwebtoken');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    socket.userId = decoded.userId;
+    socket.organizationId = decoded.organizationId;
+    socket.role = decoded.role;
+    
+    next();
+  } catch (err) {
+    next(new Error('Authentication failed'));
+  }
+});
+
+io.on('connection', (socket) => {
+  console.log(`User ${socket.userId} connected:`, socket.id);
+  
+  // Join organization room for targeted messaging
+  socket.join(`org_${socket.organizationId}`);
+  
+  // Handle test session events
+  socket.on('join_test_session', (sessionId) => {
+    socket.join(`session_${sessionId}`);
+    console.log(`User ${socket.userId} joined test session ${sessionId}`);
+  });
+
+  socket.on('leave_test_session', (sessionId) => {
+    socket.leave(`session_${sessionId}`);
+    console.log(`User ${socket.userId} left test session ${sessionId}`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`User ${socket.userId} disconnected:`, socket.id);
+  });
+});
+
+// MongoDB connection with FIXED options
+async function connectDB() {
+  try {
+    // FIXED: Removed deprecated options and updated to modern format
+    const mongoOptions = {
+      maxPoolSize: 10, // Replaces maxPoolSize
+      serverSelectionTimeoutMS: 5000,
+      socketTimeoutMS: 45000,
+      // REMOVED: bufferCommands: false, (deprecated)
+      // REMOVED: bufferMaxEntries: 0, (deprecated and causing the error)
+    };
+
+    await mongoose.connect(process.env.MONGO_URL, mongoOptions);
+    console.log('✅ Connected to MongoDB');
+
+    // Handle MongoDB connection events
+    mongoose.connection.on('error', (err) => {
+      console.error('❌ MongoDB connection error:', err);
     });
+
+    mongoose.connection.on('disconnected', () => {
+      console.warn('⚠️ MongoDB disconnected');
+    });
+
+    mongoose.connection.on('reconnected', () => {
+      console.log('✅ MongoDB reconnected');
+    });
+
+  } catch (err) {
+    console.error('❌ MongoDB connection failed:', err);
+    process.exit(1);
+  }
+}
+
+// Graceful shutdown handling
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM received, shutting down gracefully...');
+  server.close(() => {
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed.');
+      process.exit(0);
+    });
+  });
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT received, shutting down gracefully...');
+  server.close(() => {
+    mongoose.connection.close(false, () => {
+      console.log('MongoDB connection closed.');
+      process.exit(0);
+    });
+  });
 });
 
 // Start server
-const startServer = async () => {
-    try {
-        await connectToMongo();
+connectDB();
 
-        const PORT = process.env.PORT || 7000;
-        const server = app.listen(PORT, () => {
-            console.log(`🚀 EngineerSmith server running on port ${PORT}`);
-            console.log(`📊 Health check: http://localhost:${PORT}/health`);
-            console.log(`🔐 Auth: http://localhost:${PORT}/api/auth/*`);
-            console.log(`❓ Questions: http://localhost:${PORT}/api/questions`);
-            console.log(`👑 Admin: http://localhost:${PORT}/api/admin/*`);
-            console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
-        });
-
-        // Graceful shutdown
-        const gracefulShutdown = (signal) => {
-            console.log(`\n🔄 Received ${signal}. Closing server gracefully...`);
-            server.close(async () => {
-                try {
-                    await mongoose.connection.close();
-                    console.log('✅ Server and MongoDB connection closed');
-                    process.exit(0);
-                } catch (error) {
-                    console.error('❌ Error closing MongoDB connection:', error);
-                    process.exit(1);
-                }
-            });
-        };
-
-        process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-        process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-
-    } catch (error) {
-        console.error('❌ Server startup error:', error.message);
-        process.exit(1);
-    }
-};
-
-startServer();
+const PORT = process.env.PORT || 7000;
+server.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`🌐 Health check: http://localhost:${PORT}`);
+});
