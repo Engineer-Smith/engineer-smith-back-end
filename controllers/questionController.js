@@ -255,7 +255,16 @@ const getAllQuestions = async (req, res, next) => {
       if (isGlobal !== undefined) {
         query.isGlobal = isGlobal === 'true';
       }
-      if (language) query.language = language;
+      if (language) {
+        const languages = language.split(',').map(l => l.trim());
+        query.language = { $in: languages };
+      }
+
+      // And for tags:
+      if (req.query.tag) {
+        const tags = req.query.tag.split(',').map(t => t.trim());
+        query.tags = { $in: tags };
+      }
       if (difficulty) query.difficulty = difficulty;
       if (type) query.type = type;
 
@@ -270,7 +279,16 @@ const getAllQuestions = async (req, res, next) => {
         { organizationId: user.organizationId, isGlobal: false },
       ];
 
-      if (language) query.language = language;
+      if (language) {
+        const languages = language.split(',').map(l => l.trim());
+        query.language = { $in: languages };
+      }
+
+      // ✅ FIX: Add tag support for regular users
+      if (req.query.tag) {
+        const tags = req.query.tag.split(',').map(t => t.trim());
+        query.tags = { $in: tags };
+      }
       if (difficulty) query.difficulty = difficulty;
       if (type) query.type = type;
 
