@@ -1,7 +1,15 @@
-// /routes/testSessions.js - UPDATED
+// /routes/testSessions.js - FIXED ROUTING
 const express = require('express');
 const router = express.Router();
-const { startTestSession, getTestSession, getAllTestSessions, submitTestSession, abandonTestSession } = require('../controllers/testSessionController');
+const { 
+  startTestSession, 
+  getTestSession, 
+  getAllTestSessions, 
+  submitTestSession, 
+  abandonTestSession, 
+  submitSection,
+  getSessionTimeSync
+} = require('../controllers/testSessionController');
 const { verifyToken, validateOrgAdminOrInstructor, validateContentAccess } = require('../middleware/auth');
 
 // Start test session - students start tests, admins/instructors can also start for testing
@@ -18,5 +26,10 @@ router.patch('/:sessionId', verifyToken, validateContentAccess, submitTestSessio
 
 // Abandon test session - students can abandon their tests
 router.patch('/:sessionId/abandon', verifyToken, validateContentAccess, abandonTestSession);
+
+// FIXED: Submit section - remove the /api prefix since it's already mounted at /api/test-sessions
+router.patch('/:sessionId/submit-section', verifyToken, validateContentAccess, submitSection);
+
+router.get('/:sessionId/time-sync', verifyToken, getSessionTimeSync);
 
 module.exports = router;

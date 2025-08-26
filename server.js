@@ -1,4 +1,4 @@
-// server.js - Fixed MongoDB connection options
+// server.js - Fixed MongoDB connection options and improved rate limiting with IPv6 support
 const express = require('express');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
@@ -77,33 +77,71 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
-// Rate limiting with different tiers
+// IMPROVED Rate limiting with development-friendly settings and IPv6 support
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
 const authLimiter = rateLimit({
   windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 minutes
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS, 10) || 5, // 5 attempts per window
+  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS, 10) || (isDevelopment ? 20 : 5), // More lenient in dev
   message: {
     error: 'Too many authentication attempts, please try again later.',
     retryAfter: Math.ceil(900000 / 1000 / 60), // minutes
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // Skip rate limiting in development if desired
+  skip: (req, res) => isDevelopment && process.env.SKIP_RATE_LIMIT_DEV === 'true',
 });
 
 const apiLimiter = rateLimit({
-  windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 minutes
-  max: parseInt(process.env.API_RATE_LIMIT_MAX_REQUESTS, 10) || 1000,
+  windowMs: parseInt(process.env.API_RATE_LIMIT_WINDOW_MS, 10) || (isDevelopment ? 60000 : 900000), // 1 min in dev, 15 min in prod
+  max: parseInt(process.env.API_RATE_LIMIT_MAX_REQUESTS, 10) || (isDevelopment ? 500 : 1000), // More requests per window
   message: {
     error: 'Too many API requests, please try again later.',
-    retryAfter: Math.ceil(900000 / 1000 / 60), // minutes
+    retryAfter: Math.ceil((isDevelopment ? 60000 : 900000) / 1000 / 60), // minutes
   },
   standardHeaders: true,
   legacyHeaders: false,
+  // FIXED: Use the provided keyGenerator helper for IPv6 safety
+  keyGenerator: (req, res) => {
+    // In development, combine IP with path for more granular limiting
+    if (isDevelopment) {
+      // Use the built-in key generator which safely handles IPv6
+      const { ipKeyGenerator } = rateLimit;
+      const safeIp = ipKeyGenerator(req, res);
+      return `${safeIp}-${req.path}`;
+    }
+    // In production, use the default IP-based limiting (which is IPv6 safe by default)
+    return undefined; // Let express-rate-limit use its default keyGenerator
+  },
+  // Skip rate limiting in development if desired
+  skip: (req, res) => isDevelopment && process.env.SKIP_RATE_LIMIT_DEV === 'true',
+});
+
+// More specific rate limiting for dashboard endpoints that might get called multiple times
+const dashboardLimiter = rateLimit({
+  windowMs: 60000, // 1 minute
+  max: isDevelopment ? 100 : 30, // Allow more requests for dashboard data
+  message: {
+    error: 'Too many dashboard requests, please slow down.',
+    retryAfter: 1,
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req, res) => isDevelopment && process.env.SKIP_RATE_LIMIT_DEV === 'true',
 });
 
 // Apply rate limiting
 app.use('/auth/login', authLimiter);
 app.use('/auth/register', authLimiter);
 app.use('/auth/refresh-token', authLimiter);
+
+// Apply dashboard-specific rate limiting to routes that might be called multiple times
+app.use('/api/tests', dashboardLimiter);
+app.use('/api/test-sessions', dashboardLimiter);
+app.use('/api/results', dashboardLimiter);
+
+// Apply general API rate limiting to everything else
 app.use('/api', apiLimiter);
 
 // Import routes
@@ -133,6 +171,10 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
     timestamp: new Date().toISOString(),
+    rateLimitInfo: {
+      development: isDevelopment,
+      skipRateLimit: isDevelopment && process.env.SKIP_RATE_LIMIT_DEV === 'true'
+    }
   });
 });
 
@@ -145,7 +187,6 @@ app.use((err, req, res, next) => {
   }
 
   // Don't expose internal errors in production
-  const isDevelopment = process.env.NODE_ENV === 'development';
   const status = err.status || 500;
   const message = status === 500 && !isDevelopment 
     ? 'Internal server error' 
@@ -248,21 +289,27 @@ async function connectDB() {
 // Graceful shutdown handling
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully...');
-  server.close(() => {
-    mongoose.connection.close(false, () => {
+  server.close(async () => {
+    try {
+      await mongoose.connection.close();
       console.log('MongoDB connection closed.');
-      process.exit(0);
-    });
+    } catch (err) {
+      console.error('Error closing MongoDB connection:', err);
+    }
+    process.exit(0);
   });
 });
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
-  server.close(() => {
-    mongoose.connection.close(false, () => {
+  server.close(async () => {
+    try {
+      await mongoose.connection.close();
       console.log('MongoDB connection closed.');
-      process.exit(0);
-    });
+    } catch (err) {
+      console.error('Error closing MongoDB connection:', err);
+    }
+    process.exit(0);
   });
 });
 
@@ -273,4 +320,10 @@ const PORT = process.env.PORT || 7000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
   console.log(`🌐 Health check: http://localhost:${PORT}`);
+  if (isDevelopment) {
+    console.log('🔧 Development mode: Rate limiting is more lenient');
+    if (process.env.SKIP_RATE_LIMIT_DEV === 'true') {
+      console.log('⚠️  Rate limiting DISABLED in development');
+    }
+  }
 });

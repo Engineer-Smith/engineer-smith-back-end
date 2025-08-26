@@ -95,9 +95,14 @@ const startTestSession = async (req, res, next) => {
 const getTestSession = async (req, res, next) => {
   try {
     const { user } = req;
-    const { sessionId } = req.params;
+    const { sessionId } = req.params; // ADD THIS LINE - extract sessionId from params
 
-    const session = await TestSession.findById(sessionId).populate('questions.questionId', 'title description type language options testCases');
+    const session = await TestSession.findById(sessionId) // Now sessionId is defined
+      .populate({
+        path: 'questions.questionId',
+        select: 'title description type language options testCases difficulty'
+      });
+
     if (!session) {
       throw createError(404, 'Test session not found');
     }
@@ -109,7 +114,7 @@ const getTestSession = async (req, res, next) => {
         throw createError(403, 'Unauthorized to access this test session');
       }
       if (user.role !== 'admin') {
-        throw createError(403, 'Only admins or instructors can access other users’ sessions');
+        throw createError(403, 'Only admins or instructors can access other users sessions');
       }
     }
 
@@ -123,22 +128,17 @@ const getTestSession = async (req, res, next) => {
       });
     }
 
-    res.json({
-      id: session._id,
-      testId: session.testId,
-      userId: session.userId,
-      organizationId: session.organizationId,
-      attemptNumber: session.attemptNumber,
-      status: session.status,
-      startedAt: session.startedAt,
-      completedAt: session.completedAt,
-      timeSpent: session.timeSpent,
-      questions: session.questions,
-      score: session.score,
-      completedSections: session.completedSections,
-      createdAt: session.createdAt,
-      updatedAt: session.updatedAt,
-    });
+    // Transform for frontend compatibility
+    const transformedSession = {
+      ...session.toObject(),
+      questions: session.questions.map(q => ({
+        ...q.toObject(),
+        questionData: q.questionId, // Frontend expects this structure
+        questionId: q.questionId._id // Keep reference
+      }))
+    };
+
+    res.json(transformedSession);
   } catch (error) {
     next(error);
   }
@@ -182,6 +182,9 @@ const getAllTestSessions = async (req, res, next) => {
 
 // Submit test session answers (students)
 const submitTestSession = async (req, res, next) => {
+  const mongoSession = await mongoose.startSession();
+  mongoSession.startTransaction();
+
   try {
     const { user } = req;
     const { sessionId } = req.params;
@@ -195,7 +198,8 @@ const submitTestSession = async (req, res, next) => {
       throw createError(400, 'Invalid status');
     }
 
-    const session = await TestSession.findById(sessionId);
+    // Fetch session with transaction
+    const session = await TestSession.findById(sessionId).session(mongoSession);
     if (!session) {
       throw createError(404, 'Test session not found');
     }
@@ -208,57 +212,68 @@ const submitTestSession = async (req, res, next) => {
       throw createError(400, 'Test session is not in progress');
     }
 
-    // Fetch test and questions
-    const test = await Test.findById(session.testId);
+    // Fetch test and questions with transaction
+    const test = await Test.findById(session.testId).session(mongoSession);
     if (!test) {
       throw createError(404, 'Test not found');
     }
+
     const questionIds = questions.map(q => q.questionId);
-    const questionDocs = await Question.find({ _id: { $in: questionIds } });
+    const questionDocs = await Question.find({ _id: { $in: questionIds } }).session(mongoSession);
     if (questionDocs.length !== questionIds.length) {
       throw createError(400, 'Some question IDs are invalid');
     }
 
-    // Update session
+    // Collect question updates and process session questions
+    const questionUpdates = [];
     let earnedPoints = 0;
+
     session.questions.forEach(sessionQuestion => {
       const submitted = questions.find(q => q.questionId.toString() === sessionQuestion.questionId.toString());
       if (submitted) {
         const questionDoc = questionDocs.find(q => q._id.toString() === submitted.questionId.toString());
+
+        if (!questionDoc) {
+          console.warn(`Question document not found for ID: ${submitted.questionId}`);
+          return;
+        }
+
         sessionQuestion.answer = submitted.answer;
         sessionQuestion.timeSpent = submitted.timeSpent || 0;
 
         // Evaluate answer
+        let isCorrect = false;
         if (questionDoc.type === 'multipleChoice') {
-          sessionQuestion.isCorrect = submitted.answer === questionDoc.correctAnswer;
+          isCorrect = submitted.answer === questionDoc.correctAnswer;
         } else if (questionDoc.type === 'trueFalse') {
-          sessionQuestion.isCorrect = submitted.answer === questionDoc.correctAnswer;
+          isCorrect = submitted.answer === questionDoc.correctAnswer;
         } else if (questionDoc.type === 'codeChallenge' || questionDoc.type === 'codeDebugging') {
           sessionQuestion.codeSubmissions = submitted.codeSubmissions || [];
-          sessionQuestion.isCorrect = submitted.codeSubmissions?.every(sub => sub.passed) || false;
+          isCorrect = submitted.codeSubmissions?.every(sub => sub.passed) || false;
         }
+
+        sessionQuestion.isCorrect = isCorrect;
 
         // Calculate points
         const points = test.settings.useSections
           ? test.sections
-              .flatMap(section => section.questions)
-              .find(q => q.questionId.toString() === sessionQuestion.questionId.toString())?.points || 0
+            .flatMap(section => section.questions)
+            .find(q => q.questionId.toString() === sessionQuestion.questionId.toString())?.points || 0
           : test.questions.find(q => q.questionId.toString() === sessionQuestion.questionId.toString())?.points || 0;
-        sessionQuestion.pointsAwarded = sessionQuestion.isCorrect ? points : 0;
+
+        sessionQuestion.pointsAwarded = isCorrect ? points : 0;
         earnedPoints += sessionQuestion.pointsAwarded;
 
-        // Update Question.usageStats
-        questionDoc.usageStats.totalAttempts += 1;
-        questionDoc.usageStats.correctAttempts += sessionQuestion.isCorrect ? 1 : 0;
-        questionDoc.usageStats.timesUsed += 1;
-        questionDoc.usageStats.averageTime = (questionDoc.usageStats.averageTime * (questionDoc.usageStats.totalAttempts - 1) + sessionQuestion.timeSpent) / questionDoc.usageStats.totalAttempts;
-        questionDoc.usageStats.successRate = questionDoc.usageStats.correctAttempts / questionDoc.usageStats.totalAttempts;
-        questionDoc.markModified('usageStats');
-        questionDoc.save(); // No await needed in async context
+        // Collect update data for batch processing
+        questionUpdates.push({
+          questionId: questionDoc._id,
+          isCorrect: isCorrect,
+          timeSpent: sessionQuestion.timeSpent
+        });
       }
     });
 
-    // Update session
+    // Update session score and status
     session.score.earnedPoints = earnedPoints;
     session.score.passed = earnedPoints >= (session.score.totalPoints * 0.7); // Example passing threshold
     session.status = status || 'completed';
@@ -266,12 +281,81 @@ const submitTestSession = async (req, res, next) => {
     session.timeSpent = (new Date() - session.startedAt) / 1000; // Seconds
     session.completedSections = completedSections || session.completedSections;
 
-    // Update Test.stats
-    test.stats.totalAttempts += 1;
-    test.stats.averageScore = (test.stats.averageScore * (test.stats.totalAttempts - 1) + earnedPoints) / test.stats.totalAttempts;
-    test.stats.passRate = test.stats.passed ? (test.stats.passRate * (test.stats.totalAttempts - 1) + (session.score.passed ? 1 : 0)) / test.stats.totalAttempts : session.score.passed ? 1 : 0;
-    test.markModified('stats');
-    await test.save();
+    // Save session with transaction
+    await session.save({ session: mongoSession });
+
+    // Update question statistics atomically
+    const updateQuestionStats = async (questionId, isCorrect, timeSpent) => {
+      // First, get current stats in a way that works with the transaction
+      const currentQuestion = await Question.findById(questionId).session(mongoSession);
+      if (!currentQuestion) {
+        console.warn(`Question not found for stats update: ${questionId}`);
+        return;
+      }
+
+      const currentStats = currentQuestion.usageStats || {
+        totalAttempts: 0,
+        correctAttempts: 0,
+        timesUsed: 0,
+        averageTime: 0,
+        successRate: 0
+      };
+
+      // Calculate new values
+      const newTotalAttempts = currentStats.totalAttempts + 1;
+      const newCorrectAttempts = currentStats.correctAttempts + (isCorrect ? 1 : 0);
+      const newTimesUsed = currentStats.timesUsed + 1;
+      const newAverageTime = (currentStats.averageTime * currentStats.totalAttempts + timeSpent) / newTotalAttempts;
+      const newSuccessRate = newCorrectAttempts / newTotalAttempts;
+
+      // Update atomically
+      return Question.findByIdAndUpdate(
+        questionId,
+        {
+          $set: {
+            'usageStats.totalAttempts': newTotalAttempts,
+            'usageStats.correctAttempts': newCorrectAttempts,
+            'usageStats.timesUsed': newTimesUsed,
+            'usageStats.averageTime': newAverageTime,
+            'usageStats.successRate': newSuccessRate
+          }
+        },
+        {
+          session: mongoSession,
+          new: true,
+          upsert: false
+        }
+      );
+    };
+
+    // Process all question updates in parallel within the transaction
+    await Promise.all(
+      questionUpdates.map(update =>
+        updateQuestionStats(update.questionId, update.isCorrect, update.timeSpent)
+      )
+    );
+
+    // Update Test statistics
+    const currentTestStats = test.stats || {
+      totalAttempts: 0,
+      averageScore: 0,
+      passRate: 0,
+      passed: 0
+    };
+
+    const newTestTotalAttempts = currentTestStats.totalAttempts + 1;
+    const newTestAverageScore = (currentTestStats.averageScore * currentTestStats.totalAttempts + earnedPoints) / newTestTotalAttempts;
+    const newTestPassedCount = currentTestStats.passed + (session.score.passed ? 1 : 0);
+    const newTestPassRate = newTestPassedCount / newTestTotalAttempts;
+
+    test.stats = {
+      totalAttempts: newTestTotalAttempts,
+      averageScore: newTestAverageScore,
+      passRate: newTestPassRate,
+      passed: newTestPassedCount
+    };
+
+    await test.save({ session: mongoSession });
 
     // Create Result document
     const result = new Result({
@@ -286,10 +370,32 @@ const submitTestSession = async (req, res, next) => {
       questions: session.questions,
       score: session.score,
     });
-    await result.save();
 
-    await session.save();
+    await result.save({ session: mongoSession });
 
+    // Commit the transaction
+    await mongoSession.commitTransaction();
+
+    // Emit real-time update (after successful commit)
+    if (req.io) {
+      req.io.to(`session_${sessionId}`).emit('session_completed', {
+        sessionId: session._id,
+        userId: session.userId,
+        status: session.status,
+        score: session.score,
+        completedAt: session.completedAt
+      });
+
+      // Notify organization admins/instructors
+      req.io.to(`org_${session.organizationId}_instructors`).emit('student_completed_test', {
+        sessionId: session._id,
+        userId: session.userId,
+        testId: session.testId,
+        score: session.score
+      });
+    }
+
+    // Return response
     res.json({
       id: session._id,
       testId: session.testId,
@@ -305,8 +411,20 @@ const submitTestSession = async (req, res, next) => {
       completedSections: session.completedSections,
       updatedAt: session.updatedAt,
     });
+
   } catch (error) {
+    // Rollback transaction on any error
+    await mongoSession.abortTransaction();
+    console.error('Test submission failed:', {
+      sessionId: req.params.sessionId,
+      userId: req.user?.userId,
+      error: error.message,
+      stack: error.stack
+    });
     next(error);
+  } finally {
+    // Always end the session
+    mongoSession.endSession();
   }
 };
 
@@ -355,10 +473,131 @@ const abandonTestSession = async (req, res, next) => {
   }
 };
 
+// Submit a single section
+const submitSection = async (req, res, next) => {
+  try {
+    const { user } = req;
+    const { sessionId } = req.params;
+    const { sectionIndex, questions } = req.body;
+
+    if (!Array.isArray(questions) || sectionIndex === undefined) {
+      throw createError(400, 'Section index and questions array are required');
+    }
+
+    const session = await TestSession.findById(sessionId);
+    if (!session) {
+      throw createError(404, 'Test session not found');
+    }
+
+    if (session.userId.toString() !== user.userId.toString()) {
+      throw createError(403, 'Unauthorized to submit this section');
+    }
+
+    if (session.status !== 'inProgress') {
+      throw createError(400, 'Test session is not in progress');
+    }
+
+    // Check if section already completed
+    if (session.completedSections.includes(sectionIndex)) {
+      throw createError(400, 'Section already completed');
+    }
+
+    // Get test to validate section
+    const test = await Test.findById(session.testId);
+    if (!test || !test.settings.useSections || !test.sections[sectionIndex]) {
+      throw createError(400, 'Invalid section');
+    }
+
+    // Update questions for this section
+    questions.forEach(submittedQuestion => {
+      const sessionQuestion = session.questions.find(
+        q => q.questionId.toString() === submittedQuestion.questionId.toString() &&
+          q.sectionIndex === sectionIndex
+      );
+
+      if (sessionQuestion) {
+        sessionQuestion.answer = submittedQuestion.answer;
+        sessionQuestion.timeSpent = submittedQuestion.timeSpent || 0;
+        // Note: Don't calculate scores yet, wait for final submission
+      }
+    });
+
+    // Mark section as completed
+    session.completedSections.push(sectionIndex);
+    session.updatedAt = Date.now();
+    await session.save();
+
+    // Check if all sections completed
+    const allSectionsCompleted = session.completedSections.length === test.sections.length;
+
+    res.json({
+      message: 'Section submitted successfully',
+      completedSections: session.completedSections,
+      allSectionsCompleted,
+      nextSectionIndex: allSectionsCompleted ? null : findNextIncompleteSection(session, test)
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const findNextIncompleteSection = (session, test) => {
+  for (let i = 0; i < test.sections.length; i++) {
+    if (!session.completedSections.includes(i)) {
+      return i;
+    }
+  }
+  return null;
+};
+
+const getSessionTimeSync = async (req, res, next) => {
+  try {
+    const { user } = req;
+    const { sessionId } = req.params;
+
+    console.log('getSessionTimeSync called with:', { sessionId, userId: user?.userId });
+
+    // Validate sessionId
+    if (!sessionId || sessionId === 'undefined' || typeof sessionId !== 'string') {
+      throw createError(400, 'Valid session ID is required');
+    }
+
+    // Check if it's a valid MongoDB ObjectId format
+    if (sessionId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(sessionId)) {
+      throw createError(400, 'Invalid session ID format');
+    }
+
+    const session = await TestSession.findById(sessionId);
+    if (!session) {
+      throw createError(404, 'Test session not found');
+    }
+
+    // Validate access
+    if (session.userId.toString() !== user.userId.toString()) {
+      throw createError(403, 'Unauthorized to access this test session');
+    }
+
+    const serverTime = Date.now();
+    const startTime = new Date(session.startedAt).getTime();
+    const elapsedSeconds = Math.floor((serverTime - startTime) / 1000);
+
+    res.json({
+      serverTime,
+      startTime,
+      elapsedSeconds,
+      sessionTimeSpent: session.timeSpent + elapsedSeconds
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   startTestSession,
   getTestSession,
   getAllTestSessions,
   submitTestSession,
   abandonTestSession,
+  submitSection,
+  getSessionTimeSync
 };
