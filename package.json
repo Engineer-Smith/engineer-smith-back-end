@@ -21,6 +21,7 @@
     "express": "^4.21.2",
     "express-rate-limit": "^8.0.1",
     "helmet": "^8.1.0",
+    "isolated-vm": "^6.0.1",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.17.1",
     "morgan": "^1.10.1",
@@ -28,8 +29,12 @@
     "passport-local": "^1.0.0",
     "passport-oauth2": "^1.8.0",
     "puppeteer": "^24.16.2",
+    "pyodide": "^0.28.2",
     "socket.io": "^4.8.1",
-    "sqlite3": "^5.1.7"
+    "sql.js": "^1.13.0",
+    "sqlite3": "^5.1.7",
+    "typescript": "^5.9.2",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
     "eslint": "^9.33.0",

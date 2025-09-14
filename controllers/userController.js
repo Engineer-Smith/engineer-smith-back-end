@@ -50,7 +50,7 @@ const registerUser = async (req, res, next) => {
     await user.save();
 
     res.status(201).json({
-      id: user._id,
+      _id: user._id,
       loginId: user.loginId,
       loginType: user.loginType,
       organizationId: user.organizationId,
@@ -77,7 +77,7 @@ const getUser = async (req, res, next) => {
     }
 
     res.json({
-      id: targetUser._id,
+      _id: targetUser._id,
       loginId: targetUser.loginId,
       loginType: targetUser.loginType,
       organizationId: targetUser.organizationId,
@@ -167,7 +167,7 @@ const updateUser = async (req, res, next) => {
     );
 
     res.json({
-      id: updatedUser._id,
+      _id: updatedUser._id,
       loginId: updatedUser.loginId,
       loginType: updatedUser.loginType,
       organizationId: updatedUser.organizationId,

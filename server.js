@@ -1,4 +1,4 @@
-// server.js - Fixed MongoDB connection options and improved rate limiting with IPv6 support
+// server.js - Updated to use Socket Service for test session management
 const express = require('express');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
@@ -6,7 +6,6 @@ const cors = require('cors');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
-const { Server } = require('socket.io');
 const http = require('http');
 const passport = require('passport');
 require('dotenv').config();
@@ -15,13 +14,19 @@ require('./config/passport'); // Initialize Passport
 // Initialize Express app
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production' ? 'https://engineersmith.com' : 'http://localhost:5173',
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
-    credentials: true, // Important for cookies
-  },
-});
+
+// Initialize Socket Service
+const socketService = require('./services/socketService');
+const io = socketService.initialize(server);
+
+// FIXED: Import and inject the test session controller
+const testSessionController = require('./controllers/testSessionController');
+
+// Inject dependencies (this was missing!)
+socketService.setTestSessionController(testSessionController);
+testSessionController.setSocketService(socketService);
+
+console.log('Socket service and test session controller dependencies injected');
 
 // Enhanced security middleware
 app.use(helmet({
@@ -153,6 +158,7 @@ const questionsRoutes = require('./routes/questions');
 const testsRoutes = require('./routes/tests');
 const testSessionsRoutes = require('./routes/testSessions');
 const resultsRoutes = require('./routes/results');
+const tagsRoutes = require('./routes/tags');
 
 // Mount routes
 app.use('/superadmin', superadminRoutes);
@@ -163,6 +169,7 @@ app.use('/api/questions', questionsRoutes);
 app.use('/api/tests', testsRoutes);
 app.use('/api/test-sessions', testSessionsRoutes);
 app.use('/api/results', resultsRoutes);
+app.use('/api/tags', tagsRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {
@@ -174,6 +181,11 @@ app.get('/', (req, res) => {
     rateLimitInfo: {
       development: isDevelopment,
       skipRateLimit: isDevelopment && process.env.SKIP_RATE_LIMIT_DEV === 'true'
+    },
+    socketService: {
+      initialized: !!socketService.getIO(),
+      status: 'active',
+      controllerInjected: !!socketService.testSessionController
     }
   });
 });
@@ -208,50 +220,6 @@ app.use('*', (req, res) => {
   });
 });
 
-// Enhanced Socket.IO with authentication
-io.use(async (socket, next) => {
-  try {
-    const token = socket.handshake.auth.token || 
-                  socket.handshake.headers.cookie?.match(/accessToken=([^;]+)/)?.[1];
-    
-    if (!token) {
-      return next(new Error('Authentication token required'));
-    }
-
-    const jwt = require('jsonwebtoken');
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    socket.userId = decoded.userId;
-    socket.organizationId = decoded.organizationId;
-    socket.role = decoded.role;
-    
-    next();
-  } catch (err) {
-    next(new Error('Authentication failed'));
-  }
-});
-
-io.on('connection', (socket) => {
-  console.log(`User ${socket.userId} connected:`, socket.id);
-  
-  // Join organization room for targeted messaging
-  socket.join(`org_${socket.organizationId}`);
-  
-  // Handle test session events
-  socket.on('join_test_session', (sessionId) => {
-    socket.join(`session_${sessionId}`);
-    console.log(`User ${socket.userId} joined test session ${sessionId}`);
-  });
-
-  socket.on('leave_test_session', (sessionId) => {
-    socket.leave(`session_${sessionId}`);
-    console.log(`User ${socket.userId} left test session ${sessionId}`);
-  });
-
-  socket.on('disconnect', () => {
-    console.log(`User ${socket.userId} disconnected:`, socket.id);
-  });
-});
-
 // MongoDB connection with FIXED options
 async function connectDB() {
   try {
@@ -265,23 +233,23 @@ async function connectDB() {
     };
 
     await mongoose.connect(process.env.MONGO_URL, mongoOptions);
-    console.log('✅ Connected to MongoDB');
+    console.log('Connected to MongoDB');
 
     // Handle MongoDB connection events
     mongoose.connection.on('error', (err) => {
-      console.error('❌ MongoDB connection error:', err);
+      console.error('MongoDB connection error:', err);
     });
 
     mongoose.connection.on('disconnected', () => {
-      console.warn('⚠️ MongoDB disconnected');
+      console.warn('MongoDB disconnected');
     });
 
     mongoose.connection.on('reconnected', () => {
-      console.log('✅ MongoDB reconnected');
+      console.log('MongoDB reconnected');
     });
 
   } catch (err) {
-    console.error('❌ MongoDB connection failed:', err);
+    console.error('MongoDB connection failed:', err);
     process.exit(1);
   }
 }
@@ -289,6 +257,7 @@ async function connectDB() {
 // Graceful shutdown handling
 process.on('SIGTERM', async () => {
   console.log('SIGTERM received, shutting down gracefully...');
+  socketService.cleanup();
   server.close(async () => {
     try {
       await mongoose.connection.close();
@@ -302,6 +271,7 @@ process.on('SIGTERM', async () => {
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
+  socketService.cleanup();
   server.close(async () => {
     try {
       await mongoose.connection.close();
@@ -318,12 +288,20 @@ connectDB();
 
 const PORT = process.env.PORT || 7000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
-  console.log(`🌐 Health check: http://localhost:${PORT}`);
+  console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
+  console.log(`Health check: http://localhost:${PORT}`);
+  console.log('Socket.IO service initialized and ready');
+  console.log('Test session controller integrated with socket service');
   if (isDevelopment) {
-    console.log('🔧 Development mode: Rate limiting is more lenient');
+    console.log('Development mode: Rate limiting is more lenient');
     if (process.env.SKIP_RATE_LIMIT_DEV === 'true') {
-      console.log('⚠️  Rate limiting DISABLED in development');
+      console.log('Rate limiting DISABLED in development');
     }
   }
 });
+
+// Export socket service and io instance for use in other modules
+module.exports = {
+  io,
+  socketService
+};

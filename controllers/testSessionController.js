@@ -1,603 +1,940 @@
-// /controllers/testSessionController.js
-const TestSession = require('../models/TestSession');
-const Test = require('../models/Test');
-const Question = require('../models/Question');
-const Organization = require('../models/Organization');
-const Result = require('../models/Result');
+// /controllers/testSessionController.js - Server-Driven Test Session Controller
 const createError = require('http-errors');
 
-const validQuestionTypes = ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'];
+// Import updated services
+const sessionManager = require('../services/testSession/sessionManager');
+const questionHandler = require('../services/testSession/questionHandler');
+const timerService = require('../services/testSession/timerService');
+const gradingService = require('../services/testSession/gradingService');
+const adminService = require('../services/testSession/adminService');
 
-// Start a test session (students)
-const startTestSession = async (req, res, next) => {
-  try {
-    const { user } = req; // From JWT middleware
-    const { testId } = req.body;
-
-    // Validate input
-    if (!testId) {
-      throw createError(400, 'Test ID is required');
-    }
-
-    // Fetch test
-    const test = await Test.findById(testId);
-    if (!test) {
-      throw createError(404, 'Test not found');
-    }
-
-    // Validate access
-    const isSuperOrgAdminOrInstructor = user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
-    if (!isSuperOrgAdminOrInstructor) {
-      if (test.isGlobal) {
-        if (user.role !== 'student') {
-          throw createError(403, 'Only students can start global tests');
-        }
-      } else if (!test.organizationId || test.organizationId.toString() !== user.organizationId.toString()) {
-        throw createError(403, 'Unauthorized to start this test');
-      }
-    } else {
-      throw createError(403, 'Only students can start test sessions');
-    }
-
-    // Check attempt limit
-    const previousAttempts = await TestSession.countDocuments({ testId, userId: user.userId });
-    if (previousAttempts >= test.settings.attemptsAllowed) {
-      throw createError(403, 'Maximum attempts reached');
-    }
-
-    // Calculate total points
-    const questionIds = test.settings.useSections
-      ? test.sections.flatMap(section => section.questions.map(q => q.questionId))
-      : test.questions.map(q => q.questionId);
-    const questions = await Question.find({ _id: { $in: questionIds } });
-    const totalPoints = test.settings.useSections
-      ? test.sections.reduce((sum, section) => sum + section.questions.reduce((acc, q) => acc + q.points, 0), 0)
-      : test.questions.reduce((sum, q) => sum + q.points, 0);
-
-    // Create session
-    const session = new TestSession({
-      testId,
-      userId: user.userId,
-      organizationId: test.organizationId || user.organizationId,
-      attemptNumber: previousAttempts + 1,
-      status: 'inProgress',
-      startedAt: new Date(),
-      questions: questions.map(q => ({
-        questionId: q._id,
-        sectionIndex: test.settings.useSections ? test.sections.findIndex(section => section.questions.some(sq => sq.questionId.toString() === q._id.toString())) : undefined,
-        sectionName: test.settings.useSections ? test.sections.find(section => section.questions.some(sq => sq.questionId.toString() === q._id.toString()))?.name : undefined,
-      })),
-      score: { totalPoints, earnedPoints: 0, passed: false },
-      completedSections: [],
-    });
-
-    await session.save();
-
-    res.status(201).json({
-      id: session._id,
-      testId: session.testId,
-      userId: session.userId,
-      organizationId: session.organizationId,
-      attemptNumber: session.attemptNumber,
-      status: session.status,
-      startedAt: session.startedAt,
-      questions: session.questions,
-      score: session.score,
-      completedSections: session.completedSections,
-      createdAt: session.createdAt,
-    });
-  } catch (error) {
-    next(error);
+class TestSessionController {
+  constructor() {
+    this.socketService = null; // Will be injected
+    console.log('TestSessionController initialized');
   }
-};
 
-// Get a test session (super org admins/instructors, org admins/instructors, or students)
-const getTestSession = async (req, res, next) => {
-  try {
-    const { user } = req;
-    const { sessionId } = req.params; // ADD THIS LINE - extract sessionId from params
+  // Inject socket service for real-time communication
+  setSocketService(socketService) {
+    this.socketService = socketService;
+    console.log('Socket service injected into test session controller');
+  }
 
-    const session = await TestSession.findById(sessionId) // Now sessionId is defined
-      .populate({
-        path: 'questions.questionId',
-        select: 'title description type language options testCases difficulty'
+  /**
+   * REST API ENDPOINTS
+   */
+
+  // Check if user has existing session to rejoin
+  checkExistingSession = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const result = await sessionManager.checkRejoinSession(user);
+      res.json(result);
+    } catch (error) {
+      console.error('Error checking existing session:', error);
+      next(error);
+    }
+  };
+
+  // Start new test session
+  startTestSession = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { testId, forceNew = false } = req.body;
+
+      let sessionData;
+
+      if (forceNew) {
+        // FIXED: Pass the correct parameters - requestData object and user
+        sessionData = await sessionManager.createSession({ testId, forceNew: true }, user);
+      } else {
+        // FIXED: Pass the correct parameters - requestData object and user  
+        sessionData = await sessionManager.createSession({ testId, forceNew: false }, user);
+      }
+
+      // Get first question
+      const questionData = await questionHandler.getCurrentQuestion(sessionData.sessionId);
+
+      // Start timer
+      await this.startSessionTimer(sessionData.sessionId, sessionData);
+
+      res.status(201).json({
+        success: true,
+        session: sessionData,
+        question: questionData,
+        message: 'Test session started successfully'
       });
 
-    if (!session) {
-      throw createError(404, 'Test session not found');
-    }
-
-    // Validate access
-    const isSuperOrgAdminOrInstructor = user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
-    if (!isSuperOrgAdminOrInstructor && session.userId.toString() !== user.userId.toString()) {
-      if (session.organizationId && session.organizationId.toString() !== user.organizationId.toString()) {
-        throw createError(403, 'Unauthorized to access this test session');
-      }
-      if (user.role !== 'admin') {
-        throw createError(403, 'Only admins or instructors can access other users sessions');
-      }
-    }
-
-    // Hide sensitive data for students
-    if (user.role === 'student' && session.userId.toString() === user.userId.toString()) {
-      session.questions.forEach(q => {
-        if (q.questionId) {
-          q.questionId.correctAnswer = undefined;
-          q.questionId.testCases = undefined;
-        }
-      });
-    }
-
-    // Transform for frontend compatibility
-    const transformedSession = {
-      ...session.toObject(),
-      questions: session.questions.map(q => ({
-        ...q.toObject(),
-        questionData: q.questionId, // Frontend expects this structure
-        questionId: q.questionId._id // Keep reference
-      }))
-    };
-
-    res.json(transformedSession);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// List test sessions (super org admins/instructors, org admins/instructors, or students)
-const getAllTestSessions = async (req, res, next) => {
-  try {
-    const { user } = req;
-    const { userId, testId, orgId, limit = 10, skip = 0 } = req.query;
-
-    // Validate RBAC
-    const isSuperOrgAdminOrInstructor = user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
-    let query = {};
-    if (isSuperOrgAdminOrInstructor) {
-      if (userId) query.userId = userId;
-      if (testId) query.testId = testId;
-      if (orgId) query.organizationId = orgId;
-    } else if (user.role === 'admin') {
-      if (orgId && orgId !== user.organizationId.toString()) {
-        throw createError(403, 'Unauthorized to access sessions for this organization');
-      }
-      query.organizationId = user.organizationId;
-      if (userId) query.userId = userId;
-      if (testId) query.testId = testId;
-    } else {
-      query.userId = user.userId;
-      if (testId) query.testId = testId;
-    }
-
-    const sessions = await TestSession.find(query)
-      .skip(parseInt(skip))
-      .limit(parseInt(limit))
-      .select('testId userId organizationId attemptNumber status startedAt completedAt score createdAt');
-
-    res.json(sessions);
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Submit test session answers (students)
-const submitTestSession = async (req, res, next) => {
-  const mongoSession = await mongoose.startSession();
-  mongoSession.startTransaction();
-
-  try {
-    const { user } = req;
-    const { sessionId } = req.params;
-    const { questions, status, completedSections } = req.body;
-
-    // Validate input
-    if (!questions || !Array.isArray(questions)) {
-      throw createError(400, 'Questions array is required');
-    }
-    if (status && !['completed', 'expired'].includes(status)) {
-      throw createError(400, 'Invalid status');
-    }
-
-    // Fetch session with transaction
-    const session = await TestSession.findById(sessionId).session(mongoSession);
-    if (!session) {
-      throw createError(404, 'Test session not found');
-    }
-
-    // Validate access
-    if (session.userId.toString() !== user.userId.toString()) {
-      throw createError(403, 'Unauthorized to submit this test session');
-    }
-    if (session.status !== 'inProgress') {
-      throw createError(400, 'Test session is not in progress');
-    }
-
-    // Fetch test and questions with transaction
-    const test = await Test.findById(session.testId).session(mongoSession);
-    if (!test) {
-      throw createError(404, 'Test not found');
-    }
-
-    const questionIds = questions.map(q => q.questionId);
-    const questionDocs = await Question.find({ _id: { $in: questionIds } }).session(mongoSession);
-    if (questionDocs.length !== questionIds.length) {
-      throw createError(400, 'Some question IDs are invalid');
-    }
-
-    // Collect question updates and process session questions
-    const questionUpdates = [];
-    let earnedPoints = 0;
-
-    session.questions.forEach(sessionQuestion => {
-      const submitted = questions.find(q => q.questionId.toString() === sessionQuestion.questionId.toString());
-      if (submitted) {
-        const questionDoc = questionDocs.find(q => q._id.toString() === submitted.questionId.toString());
-
-        if (!questionDoc) {
-          console.warn(`Question document not found for ID: ${submitted.questionId}`);
-          return;
-        }
-
-        sessionQuestion.answer = submitted.answer;
-        sessionQuestion.timeSpent = submitted.timeSpent || 0;
-
-        // Evaluate answer
-        let isCorrect = false;
-        if (questionDoc.type === 'multipleChoice') {
-          isCorrect = submitted.answer === questionDoc.correctAnswer;
-        } else if (questionDoc.type === 'trueFalse') {
-          isCorrect = submitted.answer === questionDoc.correctAnswer;
-        } else if (questionDoc.type === 'codeChallenge' || questionDoc.type === 'codeDebugging') {
-          sessionQuestion.codeSubmissions = submitted.codeSubmissions || [];
-          isCorrect = submitted.codeSubmissions?.every(sub => sub.passed) || false;
-        }
-
-        sessionQuestion.isCorrect = isCorrect;
-
-        // Calculate points
-        const points = test.settings.useSections
-          ? test.sections
-            .flatMap(section => section.questions)
-            .find(q => q.questionId.toString() === sessionQuestion.questionId.toString())?.points || 0
-          : test.questions.find(q => q.questionId.toString() === sessionQuestion.questionId.toString())?.points || 0;
-
-        sessionQuestion.pointsAwarded = isCorrect ? points : 0;
-        earnedPoints += sessionQuestion.pointsAwarded;
-
-        // Collect update data for batch processing
-        questionUpdates.push({
-          questionId: questionDoc._id,
-          isCorrect: isCorrect,
-          timeSpent: sessionQuestion.timeSpent
+    } catch (error) {
+      // Handle session conflict specifically
+      if (error.status === 409) {
+        return res.status(409).json({
+          success: false,
+          error: error.message,
+          code: 'EXISTING_SESSION_FOUND',
+          existingSession: error.existingSession
         });
       }
-    });
 
-    // Update session score and status
-    session.score.earnedPoints = earnedPoints;
-    session.score.passed = earnedPoints >= (session.score.totalPoints * 0.7); // Example passing threshold
-    session.status = status || 'completed';
-    session.completedAt = status === 'completed' ? new Date() : session.completedAt;
-    session.timeSpent = (new Date() - session.startedAt) / 1000; // Seconds
-    session.completedSections = completedSections || session.completedSections;
+      console.error('Error starting test session:', error);
+      next(error);
+    }
+  };
 
-    // Save session with transaction
-    await session.save({ session: mongoSession });
+  // Rejoin existing session
+  rejoinTestSession = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { sessionId } = req.params;
 
-    // Update question statistics atomically
-    const updateQuestionStats = async (questionId, isCorrect, timeSpent) => {
-      // First, get current stats in a way that works with the transaction
-      const currentQuestion = await Question.findById(questionId).session(mongoSession);
-      if (!currentQuestion) {
-        console.warn(`Question not found for stats update: ${questionId}`);
-        return;
+      const sessionData = await sessionManager.rejoinSession(sessionId, user.userId);
+      const questionData = await questionHandler.getCurrentQuestion(sessionId);
+
+      // Resume timer
+      await this.resumeSessionTimer(sessionId, sessionData);
+
+      res.json({
+        success: true,
+        session: sessionData,
+        question: questionData,
+        message: 'Successfully rejoined test session'
+      });
+
+    } catch (error) {
+      console.error('Error rejoining test session:', error);
+      next(error);
+    }
+  };
+
+  // Get current question (for manual refresh)
+  getCurrentQuestion = async (req, res, next) => {
+    try {
+      const { sessionId } = req.params;
+      const result = await questionHandler.getCurrentQuestion(sessionId);
+      res.json(result);
+    } catch (error) {
+      console.error('Error getting current question:', error);
+      next(error);
+    }
+  };
+
+  // Submit answer (SERVER-DRIVEN - auto-advancement)
+  submitAnswer = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { sessionId } = req.params;
+      const answerData = req.body;
+
+      // Process answer and get next action
+      const result = await questionHandler.submitAnswer(sessionId, answerData);
+
+      // Execute the determined action
+      const response = await this.handleSubmissionResult(sessionId, result);
+
+      res.json({
+        success: true,
+        action: result.action,
+        ...response
+      });
+
+    } catch (error) {
+      console.error('Error submitting answer:', error);
+      next(error);
+    }
+  };
+
+  // Submit final test
+  submitTestSession = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { sessionId } = req.params;
+      const { forceSubmit = false } = req.body;
+
+      // Stop timer
+      timerService.clearTimer(sessionId);
+
+      // Submit for grading
+      const result = await gradingService.submitTestSession(
+        sessionId,
+        { forceSubmit },
+        user
+      );
+
+      // Notify via socket if available
+      if (this.socketService) {
+        this.socketService.sendTestCompleted(sessionId, {
+          message: 'Test completed successfully',
+          result
+        });
       }
 
-      const currentStats = currentQuestion.usageStats || {
-        totalAttempts: 0,
-        correctAttempts: 0,
-        timesUsed: 0,
-        averageTime: 0,
-        successRate: 0
+      res.json(result);
+
+    } catch (error) {
+      console.error('Test submission failed:', error);
+      next(error);
+    }
+  };
+
+  // Abandon session
+  abandonTestSession = async (req, res, next) => {
+     try {
+       console.log('Abandoning session:', req.params.sessionId, 'for user:', req.user.userId);
+       
+       // Stop timer
+       console.log('Clearing timer...');
+       timerService.clearTimer(req.params.sessionId);
+       
+       // Abandon session
+       console.log('Calling sessionManager.abandonSession...');
+       const result = await sessionManager.abandonSession(req.params.sessionId, req.user.userId);
+       
+       console.log('Abandon successful:', result);
+       res.json(result);
+       
+     } catch (error) {
+       console.error('Error in abandonTestSession:', error);
+       next(error);
+     }
+   };
+
+  // Get session time sync
+  getSessionTimeSync = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { sessionId } = req.params;
+
+      const result = await sessionManager.getTimeSync(sessionId, user);
+      res.json(result);
+
+    } catch (error) {
+      console.error('Error getting session time sync:', error);
+      next(error);
+    }
+  };
+
+  /**
+   * SOCKET EVENT HANDLERS
+   */
+
+  // Handle socket connection to session
+  handleSocketJoin = async (sessionId, userId, socketId) => {
+    try {
+      console.log(`Socket join: ${userId} connecting to session ${sessionId}`);
+
+      // Get session status first
+      const sessionStatus = await sessionManager.getSessionStatus(sessionId);
+      
+      // If session is paused, handle reconnection during grace period
+      if (sessionStatus.status === 'paused') {
+        await this.resumeSessionAfterReconnection(sessionId);
+      } else {
+        // Mark session as connected for active sessions
+        await sessionManager.markSessionConnected(sessionId);
+      }
+
+      // Get current question data
+      const questionData = await questionHandler.getCurrentQuestion(sessionId);
+
+      return {
+        success: true,
+        data: {
+          sessionStatus: sessionStatus.status,
+          currentQuestion: questionData.questionState,
+          timeRemaining: sessionStatus.timeRemaining,
+          sectionInfo: questionData.navigationContext.currentSection
+        }
       };
 
-      // Calculate new values
-      const newTotalAttempts = currentStats.totalAttempts + 1;
-      const newCorrectAttempts = currentStats.correctAttempts + (isCorrect ? 1 : 0);
-      const newTimesUsed = currentStats.timesUsed + 1;
-      const newAverageTime = (currentStats.averageTime * currentStats.totalAttempts + timeSpent) / newTotalAttempts;
-      const newSuccessRate = newCorrectAttempts / newTotalAttempts;
+    } catch (error) {
+      console.error('Error handling socket join:', error);
+      return {
+        success: false,
+        message: 'Failed to join session',
+        error: error.message
+      };
+    }
+  };
 
-      // Update atomically
-      return Question.findByIdAndUpdate(
-        questionId,
-        {
-          $set: {
-            'usageStats.totalAttempts': newTotalAttempts,
-            'usageStats.correctAttempts': newCorrectAttempts,
-            'usageStats.timesUsed': newTimesUsed,
-            'usageStats.averageTime': newAverageTime,
-            'usageStats.successRate': newSuccessRate
-          }
-        },
-        {
-          session: mongoSession,
-          new: true,
-          upsert: false
+  // Handle socket rejoin
+  handleSocketRejoin = async (sessionId, userId, socketId) => {
+    try {
+      console.log(`Socket rejoin: ${userId} rejoining session ${sessionId}`);
+
+      // Same as join for now
+      return await this.handleSocketJoin(sessionId, userId, socketId);
+
+    } catch (error) {
+      console.error('Error handling socket rejoin:', error);
+      return {
+        success: false,
+        message: 'Failed to rejoin session',
+        error: error.message
+      };
+    }
+  };
+
+  // Handle answer submission via socket
+  handleAnswerSubmit = async (sessionId, userId, answerData) => {
+    try {
+      console.log(`Socket answer submit: ${userId} for session ${sessionId}`);
+
+      // Process answer
+      const result = await questionHandler.submitAnswer(sessionId, answerData);
+
+      // Handle the result
+      const response = await this.handleSubmissionResult(sessionId, result);
+
+      return {
+        success: true,
+        action: result.action,
+        data: response
+      };
+
+    } catch (error) {
+      console.error('Error handling answer submit:', error);
+      return {
+        success: false,
+        message: 'Failed to process answer',
+        error: error.message
+      };
+    }
+  };
+
+  // CORRECTED: Handle socket disconnection with proper grace period
+  handleSocketDisconnection = async (sessionId, userId, reason) => {
+    try {
+      console.log(`Socket disconnect: ${userId} from session ${sessionId}, reason: ${reason}`);
+
+      // Get session and store time used before pausing
+      const session = await sessionManager.getSessionInternal(sessionId);
+      
+      if (session.status === 'inProgress' && session.currentSectionStartedAt) {
+        // Calculate time used in current section
+        const timeUsedMs = Date.now() - session.currentSectionStartedAt.getTime();
+        const timeUsedSeconds = Math.floor(timeUsedMs / 1000);
+        
+        // Initialize sectionTimeUsed array if needed
+        if (!session.sectionTimeUsed) {
+          session.sectionTimeUsed = new Array(session.testSnapshot.sections?.length || 1).fill(0);
         }
-      );
-    };
-
-    // Process all question updates in parallel within the transaction
-    await Promise.all(
-      questionUpdates.map(update =>
-        updateQuestionStats(update.questionId, update.isCorrect, update.timeSpent)
-      )
-    );
-
-    // Update Test statistics
-    const currentTestStats = test.stats || {
-      totalAttempts: 0,
-      averageScore: 0,
-      passRate: 0,
-      passed: 0
-    };
-
-    const newTestTotalAttempts = currentTestStats.totalAttempts + 1;
-    const newTestAverageScore = (currentTestStats.averageScore * currentTestStats.totalAttempts + earnedPoints) / newTestTotalAttempts;
-    const newTestPassedCount = currentTestStats.passed + (session.score.passed ? 1 : 0);
-    const newTestPassRate = newTestPassedCount / newTestTotalAttempts;
-
-    test.stats = {
-      totalAttempts: newTestTotalAttempts,
-      averageScore: newTestAverageScore,
-      passRate: newTestPassRate,
-      passed: newTestPassedCount
-    };
-
-    await test.save({ session: mongoSession });
-
-    // Create Result document
-    const result = new Result({
-      sessionId: session._id,
-      testId: session.testId,
-      userId: session.userId,
-      organizationId: session.organizationId,
-      attemptNumber: session.attemptNumber,
-      status: session.status,
-      completedAt: session.completedAt,
-      timeSpent: session.timeSpent,
-      questions: session.questions,
-      score: session.score,
-    });
-
-    await result.save({ session: mongoSession });
-
-    // Commit the transaction
-    await mongoSession.commitTransaction();
-
-    // Emit real-time update (after successful commit)
-    if (req.io) {
-      req.io.to(`session_${sessionId}`).emit('session_completed', {
-        sessionId: session._id,
-        userId: session.userId,
-        status: session.status,
-        score: session.score,
-        completedAt: session.completedAt
-      });
-
-      // Notify organization admins/instructors
-      req.io.to(`org_${session.organizationId}_instructors`).emit('student_completed_test', {
-        sessionId: session._id,
-        userId: session.userId,
-        testId: session.testId,
-        score: session.score
-      });
-    }
-
-    // Return response
-    res.json({
-      id: session._id,
-      testId: session.testId,
-      userId: session.userId,
-      organizationId: session.organizationId,
-      attemptNumber: session.attemptNumber,
-      status: session.status,
-      startedAt: session.startedAt,
-      completedAt: session.completedAt,
-      timeSpent: session.timeSpent,
-      questions: session.questions,
-      score: session.score,
-      completedSections: session.completedSections,
-      updatedAt: session.updatedAt,
-    });
-
-  } catch (error) {
-    // Rollback transaction on any error
-    await mongoSession.abortTransaction();
-    console.error('Test submission failed:', {
-      sessionId: req.params.sessionId,
-      userId: req.user?.userId,
-      error: error.message,
-      stack: error.stack
-    });
-    next(error);
-  } finally {
-    // Always end the session
-    mongoSession.endSession();
-  }
-};
-
-// Abandon a test session (students)
-const abandonTestSession = async (req, res, next) => {
-  try {
-    const { user } = req;
-    const { sessionId } = req.params;
-
-    const session = await TestSession.findById(sessionId);
-    if (!session) {
-      throw createError(404, 'Test session not found');
-    }
-
-    // Validate access
-    if (session.userId.toString() !== user.userId.toString()) {
-      throw createError(403, 'Unauthorized to abandon this test session');
-    }
-    if (session.status !== 'inProgress') {
-      throw createError(400, 'Test session is not in progress');
-    }
-
-    session.status = 'abandoned';
-    session.completedAt = new Date();
-    session.timeSpent = (new Date() - session.startedAt) / 1000; // Seconds
-    await session.save();
-
-    // Create Result document for abandoned session
-    const result = new Result({
-      sessionId: session._id,
-      testId: session.testId,
-      userId: session.userId,
-      organizationId: session.organizationId,
-      attemptNumber: session.attemptNumber,
-      status: session.status,
-      completedAt: session.completedAt,
-      timeSpent: session.timeSpent,
-      questions: session.questions,
-      score: session.score,
-    });
-    await result.save();
-
-    res.json({ message: 'Test session abandoned' });
-  } catch (error) {
-    next(error);
-  }
-};
-
-// Submit a single section
-const submitSection = async (req, res, next) => {
-  try {
-    const { user } = req;
-    const { sessionId } = req.params;
-    const { sectionIndex, questions } = req.body;
-
-    if (!Array.isArray(questions) || sectionIndex === undefined) {
-      throw createError(400, 'Section index and questions array are required');
-    }
-
-    const session = await TestSession.findById(sessionId);
-    if (!session) {
-      throw createError(404, 'Test session not found');
-    }
-
-    if (session.userId.toString() !== user.userId.toString()) {
-      throw createError(403, 'Unauthorized to submit this section');
-    }
-
-    if (session.status !== 'inProgress') {
-      throw createError(400, 'Test session is not in progress');
-    }
-
-    // Check if section already completed
-    if (session.completedSections.includes(sectionIndex)) {
-      throw createError(400, 'Section already completed');
-    }
-
-    // Get test to validate section
-    const test = await Test.findById(session.testId);
-    if (!test || !test.settings.useSections || !test.sections[sectionIndex]) {
-      throw createError(400, 'Invalid section');
-    }
-
-    // Update questions for this section
-    questions.forEach(submittedQuestion => {
-      const sessionQuestion = session.questions.find(
-        q => q.questionId.toString() === submittedQuestion.questionId.toString() &&
-          q.sectionIndex === sectionIndex
-      );
-
-      if (sessionQuestion) {
-        sessionQuestion.answer = submittedQuestion.answer;
-        sessionQuestion.timeSpent = submittedQuestion.timeSpent || 0;
-        // Note: Don't calculate scores yet, wait for final submission
+        
+        // Store accumulated time for current section
+        session.sectionTimeUsed[session.currentSectionIndex] = 
+          (session.sectionTimeUsed[session.currentSectionIndex] || 0) + timeUsedSeconds;
+        
+        console.log(`Stored ${timeUsedSeconds}s for section ${session.currentSectionIndex}, total: ${session.sectionTimeUsed[session.currentSectionIndex]}s`);
       }
-    });
 
-    // Mark section as completed
-    session.completedSections.push(sectionIndex);
-    session.updatedAt = Date.now();
-    await session.save();
+      // Mark session as paused and disconnected
+      session.status = 'paused';
+      session.isConnected = false;
+      session.disconnectedAt = new Date();
+      await session.save();
 
-    // Check if all sections completed
-    const allSectionsCompleted = session.completedSections.length === test.sections.length;
+      // Pause the test timer completely
+      timerService.pauseTimer(sessionId);
 
-    res.json({
-      message: 'Section submitted successfully',
-      completedSections: session.completedSections,
-      allSectionsCompleted,
-      nextSectionIndex: allSectionsCompleted ? null : findNextIncompleteSection(session, test)
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      // Start 5-minute grace period timer
+      timerService.startGracePeriod(
+        sessionId,
+        this.handleGracePeriodExpired,
+        5 * 60 * 1000 // 5 minutes
+      );
 
-const findNextIncompleteSection = (session, test) => {
-  for (let i = 0; i < test.sections.length; i++) {
-    if (!session.completedSections.includes(i)) {
-      return i;
+      // Notify via socket
+      if (this.socketService) {
+        this.socketService.sendSessionPaused(sessionId, {
+          reason: 'disconnection',
+          gracePeriodSeconds: 300,
+          message: 'Test paused due to disconnection. You have 5 minutes to reconnect before timer resumes.'
+        });
+      }
+
+      console.log(`Session ${sessionId} paused for 5-minute grace period`);
+
+    } catch (error) {
+      console.error('Error handling socket disconnection:', error);
     }
-  }
-  return null;
-};
+  };
 
-const getSessionTimeSync = async (req, res, next) => {
-  try {
-    const { user } = req;
-    const { sessionId } = req.params;
+  /**
+   * TIMER MANAGEMENT
+   */
 
-    console.log('getSessionTimeSync called with:', { sessionId, userId: user?.userId });
+  // Start timer for new session  
+  startSessionTimer = async (sessionId, sessionData) => {
+    try {
+      console.log(`Starting timer for session ${sessionId} with data:`, {
+        useSections: sessionData.useSections,
+        timeLimit: sessionData.timeLimit,
+        sectionInfo: sessionData.sectionInfo
+      });
 
-    // Validate sessionId
-    if (!sessionId || sessionId === 'undefined' || typeof sessionId !== 'string') {
-      throw createError(400, 'Valid session ID is required');
+      let timeLimit;
+
+      if (sessionData.useSections && sessionData.sectionInfo) {
+        timeLimit = sessionData.sectionInfo.timeLimit;
+      } else {
+        timeLimit = sessionData.timeLimit;
+      }
+
+      // FIXED: Handle undefined timeLimit
+      if (!timeLimit || timeLimit === undefined || isNaN(timeLimit)) {
+        console.warn(`Invalid time limit for session ${sessionId}: ${timeLimit}, using default 20 minutes`);
+        timeLimit = 20; // Default 20 minutes
+      }
+
+      const timeLimitMs = timeLimit * 60 * 1000;
+      console.log(`Calculated timer: ${timeLimit} minutes (${timeLimitMs}ms)`);
+
+      timerService.startSectionTimer(
+        sessionId,
+        timeLimitMs,
+        sessionData.sectionInfo?.currentSectionIndex || 0,
+        this.handleTimerExpiration,
+        this.handleTimerSync
+      );
+
+      console.log(`Timer started for session ${sessionId}: ${timeLimit} minutes`);
+
+    } catch (error) {
+      console.error('Error starting session timer:', error);
     }
+  };
 
-    // Check if it's a valid MongoDB ObjectId format
-    if (sessionId.length !== 24 || !/^[0-9a-fA-F]{24}$/.test(sessionId)) {
-      throw createError(400, 'Invalid session ID format');
+  // Resume timer for rejoined session
+  resumeSessionTimer = async (sessionId, sessionData) => {
+    try {
+      const sessionStatus = await sessionManager.getSessionStatus(sessionId);
+      const timeRemainingMs = sessionStatus.timeRemaining * 1000;
+
+      if (timeRemainingMs > 0) {
+        timerService.startSectionTimer(
+          sessionId,
+          timeRemainingMs,
+          sessionStatus.currentSectionIndex,
+          this.handleTimerExpiration,
+          this.handleTimerSync
+        );
+
+        console.log(`Timer resumed for session ${sessionId}: ${sessionStatus.timeRemaining} seconds remaining`);
+      } else {
+        // Timer already expired
+        await this.handleTimerExpiration(sessionId);
+      }
+
+    } catch (error) {
+      console.error('Error resuming session timer:', error);
     }
+  };
 
-    const session = await TestSession.findById(sessionId);
-    if (!session) {
-      throw createError(404, 'Test session not found');
+  // CORRECTED: Resume after reconnection during grace period
+  resumeSessionAfterReconnection = async (sessionId) => {
+    try {
+      const session = await sessionManager.getSessionInternal(sessionId);
+      
+      // Check if grace period hasn't expired yet
+      if (session.status === 'paused' && !session.gracePeriodExpired) {
+        console.log(`Student reconnected during grace period for session ${sessionId}`);
+        
+        // Clear grace period timer since student reconnected
+        timerService.clearGracePeriod(sessionId);
+        
+        // Resume from paused state
+        session.status = 'inProgress';
+        session.isConnected = true;
+        session.disconnectedAt = null;
+        
+        // Reset section timer for continued timing
+        if (session.testSnapshot.settings.useSections) {
+          session.currentSectionStartedAt = new Date();
+        }
+        
+        await session.save();
+
+        // Resume test timer from where it was paused
+        const success = timerService.resumeTimer(
+          sessionId,
+          this.handleTimerExpiration,
+          this.handleTimerSync
+        );
+
+        if (success && this.socketService) {
+          this.socketService.sendSessionResumed(sessionId, {
+            message: 'Welcome back! Test timer resumed from where you left off.'
+          });
+        }
+        
+        console.log(`Session ${sessionId} resumed from grace period`);
+      } else {
+        // Grace period already expired, just mark as connected
+        session.isConnected = true;
+        await session.save();
+        
+        if (this.socketService) {
+          this.socketService.sendSessionResumed(sessionId, {
+            message: 'Reconnected. Note: Grace period expired, so timer continued while you were away.'
+          });
+        }
+        
+        console.log(`Session ${sessionId} reconnected after grace period expiration`);
+      }
+
+    } catch (error) {
+      console.error('Error resuming session after reconnection:', error);
     }
+  };
 
-    // Validate access
-    if (session.userId.toString() !== user.userId.toString()) {
-      throw createError(403, 'Unauthorized to access this test session');
+  /**
+   * TIMER CALLBACKS
+   */
+
+  // Handle timer expiration
+  handleTimerExpiration = async (sessionId) => {
+    try {
+      console.log(`Timer expired for session ${sessionId}`);
+
+      const sessionStatus = await sessionManager.getSessionStatus(sessionId);
+
+      if (sessionStatus.useSections) {
+        // Section expired
+        if (sessionStatus.isLastSection) {
+          // Last section expired - complete test
+          await this.completeExpiredTest(sessionId);
+        } else {
+          // Move to next section
+          await this.advanceToNextSection(sessionId);
+        }
+      } else {
+        // Overall test expired
+        await this.completeExpiredTest(sessionId);
+      }
+
+    } catch (error) {
+      console.error('Error handling timer expiration:', error);
     }
+  };
 
-    const serverTime = Date.now();
-    const startTime = new Date(session.startedAt).getTime();
-    const elapsedSeconds = Math.floor((serverTime - startTime) / 1000);
+  // Handle periodic timer sync
+  handleTimerSync = async (sessionId, timeRemaining, type, message) => {
+    try {
+      if (!this.socketService) return;
 
-    res.json({
-      serverTime,
-      startTime,
-      elapsedSeconds,
-      sessionTimeSpent: session.timeSpent + elapsedSeconds
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+      if (type === 'warning') {
+        this.socketService.sendTimerWarning(sessionId, {
+          timeRemaining,
+          message
+        });
+      } else {
+        this.socketService.sendTimerSync(sessionId, {
+          timeRemaining,
+          sectionIndex: 0, // Will be updated with actual section info
+          type: 'regular'
+        });
+      }
 
-module.exports = {
-  startTestSession,
-  getTestSession,
-  getAllTestSessions,
-  submitTestSession,
-  abandonTestSession,
-  submitSection,
-  getSessionTimeSync
-};
+    } catch (error) {
+      console.error('Error handling timer sync:', error);
+    }
+  };
+
+  // CORRECTED: Grace period expiration should resume timer regardless of connection
+  handleGracePeriodExpired = async (sessionId) => {
+    try {
+      console.log(`Grace period expired for session ${sessionId} - resuming test timer`);
+
+      const session = await sessionManager.getSessionInternal(sessionId);
+      
+      // Resume the session (even if student still offline)
+      session.status = 'inProgress'; // Resume test progression
+      session.gracePeriodExpired = true; // Mark that grace period ended
+      // Keep isConnected as false if student is still offline
+      
+      // Reset section timer for continued timing
+      if (session.testSnapshot.settings.useSections) {
+        session.currentSectionStartedAt = new Date();
+      }
+      
+      await session.save();
+
+      // Resume the test timer (this will continue counting down even if offline)
+      const success = timerService.resumeTimer(
+        sessionId,
+        this.handleTimerExpiration,
+        this.handleTimerSync
+      );
+
+      if (success) {
+        console.log(`Test timer resumed for ${sessionId} after grace period expiration`);
+        
+        // Notify if student reconnects later
+        if (this.socketService) {
+          this.socketService.sendToSession(sessionId, 'grace_period_expired', {
+            message: 'Grace period expired. Test timer has resumed.',
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+
+    } catch (error) {
+      console.error('Error handling grace period expiration:', error);
+    }
+  };
+
+  /**
+   * HELPER METHODS
+   */
+
+  // FIXED: Handle submission result and determine next action
+  handleSubmissionResult = async (sessionId, result) => {
+    // The result.action contains the determined action type
+    // But the execution results have different type values
+    const actionType = result.action || result.type;
+
+    console.log(`Handling submission result: action=${result.action}, type=${result.type}, actionType=${actionType}`);
+
+    switch (actionType) {
+      case 'advance_to_next_question':  // From questionHandler.determineNextAction
+      case 'next_question':             // From questionHandler.advanceToNextQuestion
+        return {
+          type: 'next_question',
+          questionState: result.questionState,        // ✅ Correct property name
+          navigationContext: result.navigationContext, // ✅ Correct property name
+          message: result.message
+        };
+
+      case 'advance_to_next_section':   // From questionHandler.determineNextAction  
+      case 'section_transition':        // From questionHandler.advanceToNextSection
+        // Start timer for new section
+        if (result.newSection) {
+          await this.startTimerForNewSection(sessionId, result.newSection);
+        }
+
+        return {
+          type: 'section_transition',
+          newSection: result.newSection,
+          questionState: result.questionState,        // ✅ Correct property name
+          navigationContext: result.navigationContext, // ✅ Correct property name
+          message: result.message
+        };
+
+      case 'complete_test':             // From questionHandler.determineNextAction
+      case 'test_completed_confirmation': // From questionHandler.prepareTestCompletion
+        // Stop timers - test is already submitted
+        timerService.clearTimer(sessionId);
+
+        // Notify via socket
+        if (this.socketService) {
+          this.socketService.sendTestCompleted(sessionId, {
+            message: 'Test completed and automatically submitted!',
+            result: result.submissionResult,
+            showConfirmation: true
+          });
+        }
+
+        console.log(`Test session ${sessionId} completed with auto-submission`);
+
+        return {
+          type: 'test_completed_confirmation',
+          message: result.message,
+          submissionResult: result.submissionResult,
+          finalScore: result.finalScore,
+          completedAt: result.completedAt,
+          showConfirmation: result.showConfirmation,
+          confirmationData: result.confirmationData
+        };
+
+      case 'test_completed_with_error':
+        // Stop timers
+        timerService.clearTimer(sessionId);
+
+        // Notify via socket
+        if (this.socketService) {
+          this.socketService.sendToSession(sessionId, 'test:completed_with_error', {
+            message: result.message,
+            error: result.error,
+            requiresManualSubmission: result.requiresManualSubmission
+          });
+        }
+
+        return {
+          type: 'test_completed_with_error',
+          message: result.message,
+          error: result.error,
+          sessionId: result.sessionId,
+          showConfirmation: result.showConfirmation,
+          requiresManualSubmission: result.requiresManualSubmission
+        };
+
+      case 'start_review_phase':        // From questionHandler.determineNextAction
+      case 'review_phase_started':      // From questionHandler.startReviewPhase  
+        return {
+          type: 'review_phase_started',
+          questionState: result.questionState,        // ✅ Correct property name
+          navigationContext: result.navigationContext, // ✅ Correct property name
+          message: result.message
+        };
+
+      case 'advance_in_review':         // From questionHandler.determineNextAction
+      case 'next_review_question':      // From questionHandler.advanceInReview
+        return {
+          type: 'next_review_question',
+          questionState: result.questionState,        // ✅ Correct property name
+          navigationContext: result.navigationContext, // ✅ Correct property name
+          message: result.message
+        };
+
+      default:
+        console.error(`Unknown submission action: ${actionType}`, {
+          resultAction: result.action,
+          resultType: result.type,
+          fullResult: result
+        });
+        throw new Error(`Unknown submission action: ${actionType}`);
+    }
+  };
+
+  // Start timer for new section
+  startTimerForNewSection = async (sessionId, sectionInfo) => {
+    try {
+      const timeLimitMs = sectionInfo.timeLimit * 60 * 1000;
+
+      timerService.startSectionTimer(
+        sessionId,
+        timeLimitMs,
+        sectionInfo.index,
+        this.handleTimerExpiration,
+        this.handleTimerSync
+      );
+
+      console.log(`Timer started for section ${sectionInfo.index}: ${sectionInfo.timeLimit} minutes`);
+
+    } catch (error) {
+      console.error('Error starting timer for new section:', error);
+    }
+  };
+
+  // Advance to next section (timer expired)
+  advanceToNextSection = async (sessionId) => {
+    try {
+      const session = await sessionManager.getSessionInternal(sessionId);
+      const result = session.completeCurrentSection();
+      await session.save();
+
+      if (result.hasMoreSections) {
+        // Get first question of new section
+        const questionData = await questionHandler.getCurrentQuestion(sessionId);
+
+        // Start timer for new section
+        const newSection = session.testSnapshot.sections[session.currentSectionIndex];
+        await this.startTimerForNewSection(sessionId, {
+          index: session.currentSectionIndex,
+          timeLimit: newSection.timeLimit,
+          name: newSection.name
+        });
+
+        // Notify via socket
+        if (this.socketService) {
+          this.socketService.sendSectionExpired(sessionId, {
+            message: `Section time expired. Moving to ${newSection.name}.`,
+            newSectionIndex: session.currentSectionIndex
+          });
+        }
+
+        console.log(`Advanced session ${sessionId} to section ${session.currentSectionIndex}`);
+      } else {
+        // No more sections - complete test
+        await this.completeExpiredTest(sessionId);
+      }
+
+    } catch (error) {
+      console.error('Error advancing to next section:', error);
+    }
+  };
+
+  // Complete test (normal submission)
+  completeTest = async (sessionId) => {
+    try {
+      // Stop timer
+      timerService.clearTimer(sessionId);
+
+      const session = await sessionManager.getSessionInternal(sessionId);
+      const result = await gradingService.submitTestSession(
+        sessionId,
+        { forceSubmit: true },
+        { userId: session.userId }
+      );
+
+      // Notify via socket
+      if (this.socketService) {
+        this.socketService.sendTestCompleted(sessionId, {
+          message: 'Test completed successfully!',
+          result
+        });
+      }
+
+      console.log(`Test session ${sessionId} completed successfully`);
+      return result;
+
+    } catch (error) {
+      console.error('Error completing test:', error);
+      throw error;
+    }
+  };
+
+  // Complete expired test
+  completeExpiredTest = async (sessionId) => {
+    try {
+      await this.completeTest(sessionId);
+
+      // Additional notification for expiration
+      if (this.socketService) {
+        this.socketService.sendToSession(sessionId, 'test:expired', {
+          message: 'Test time expired. Your test has been automatically submitted.',
+          timestamp: new Date().toISOString()
+        });
+      }
+
+    } catch (error) {
+      console.error('Error completing expired test:', error);
+    }
+  };
+
+  // Get timer sync data
+  getTimerSync = async (sessionId) => {
+    try {
+      const timeRemaining = timerService.getTimeRemaining(sessionId);
+      const sessionStatus = await sessionManager.getSessionStatus(sessionId);
+
+      return {
+        timeRemaining,
+        serverTime: Date.now(),
+        sessionStatus: sessionStatus.status,
+        sectionIndex: sessionStatus.currentSectionIndex
+      };
+
+    } catch (error) {
+      console.error('Error getting timer sync:', error);
+      return {
+        timeRemaining: 0,
+        serverTime: Date.now(),
+        sessionStatus: 'unknown'
+      };
+    }
+  };
+
+  /**
+   * ADMIN ENDPOINTS (delegate to adminService)
+   */
+
+  // Get session overview
+  getSessionOverview = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { sessionId } = req.params;
+
+      const result = await adminService.getSessionOverview(sessionId, user);
+      res.json(result);
+
+    } catch (error) {
+      console.error('Error getting session overview:', error);
+      next(error);
+    }
+  };
+
+  // Get session analytics
+  getSessionAnalytics = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { sessionId } = req.params;
+
+      if (user.role === 'student') {
+        throw createError(403, 'Only instructors and admins can access session analytics');
+      }
+
+      const result = await adminService.getSessionAnalytics(sessionId, user);
+      res.json(result);
+
+    } catch (error) {
+      console.error('Error getting session analytics:', error);
+      next(error);
+    }
+  };
+
+  // Get class analytics
+  getClassAnalytics = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { testId, orgId, userId, status, limit = 100 } = req.query;
+
+      if (user.role === 'student') {
+        throw createError(403, 'Only instructors and admins can access class analytics');
+      }
+
+      const result = await adminService.getClassAnalytics({
+        testId, orgId, userId, status, limit
+      }, user);
+
+      res.json(result);
+
+    } catch (error) {
+      console.error('Error getting class analytics:', error);
+      next(error);
+    }
+  };
+
+  // Get test analytics
+  getTestAnalytics = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { testId } = req.params;
+
+      if (user.role === 'student') {
+        throw createError(403, 'Only instructors and admins can access test analytics');
+      }
+
+      const result = await adminService.getTestAnalytics(testId, user);
+      res.json(result);
+
+    } catch (error) {
+      console.error('Error getting test analytics:', error);
+      next(error);
+    }
+  };
+
+  // Get all test sessions
+  getAllTestSessions = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { userId, testId, orgId, status, limit = 10, skip = 0 } = req.query;
+
+      const sessions = await sessionManager.listSessions({
+        userId, testId, orgId, status, limit, skip
+      }, user);
+
+      res.json(sessions);
+    } catch (error) {
+      console.error('Error getting test sessions:', error);
+      next(error);
+    }
+  };
+
+  // Get specific test session
+  getTestSession = async (req, res, next) => {
+    try {
+      const { user } = req;
+      const { sessionId } = req.params;
+
+      const result = await sessionManager.getSessionForAdmin(sessionId, user);
+      res.json(result);
+    } catch (error) {
+      console.error('Error getting test session:', error);
+      next(error);
+    }
+  };
+}
+
+// Export singleton instance
+const testSessionController = new TestSessionController();
+module.exports = testSessionController;

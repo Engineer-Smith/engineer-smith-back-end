@@ -1,4 +1,4 @@
-// /routes/auth.js - Updated with new endpoints
+// /routes/auth.js - FIXED
 const express = require('express');
 const router = express.Router();
 const { 
@@ -9,7 +9,7 @@ const {
   ssoCallback, 
   refreshToken, 
   getCurrentUser,
-  validateInviteCode 
+  validateInviteCode  // Import from authController since it exists there
 } = require('../controllers/authController');
 const { verifyToken, csrfProtection } = require('../middleware/auth');
 
@@ -33,7 +33,7 @@ router.get('/status', verifyToken, (req, res) => {
     success: true, 
     authenticated: true,
     user: {
-      id: req.user.userId,
+      _id: req.user.userId,
       role: req.user.role,
       organizationId: req.user.organizationId,
     }

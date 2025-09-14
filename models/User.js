@@ -1,4 +1,4 @@
-// /models/User.js
+// /models/User.js - UPDATED with firstName and lastName
 const { Schema, model } = require('mongoose');
 
 const userSchema = new Schema({
@@ -11,29 +11,41 @@ const userSchema = new Schema({
   },
   email: {
     type: String,
-    sparse: true, // Allows null/undefined, but if present must be unique
+    sparse: true,
     unique: true,
     trim: true,
     lowercase: true,
     validate: {
       validator: function(email) {
-        // Only validate if email is provided
         if (!email) return true;
         return /\S+@\S+\.\S+/.test(email);
       },
       message: 'Please enter a valid email address'
     }
   },
+  // NEW: First and Last Name fields
+  firstName: {
+    type: String,
+    required: true,
+    trim: true,
+    maxLength: [50, 'First name cannot exceed 50 characters']
+  },
+  lastName: {
+    type: String,
+    required: true,
+    trim: true,
+    maxLength: [50, 'Last name cannot exceed 50 characters']
+  },
   hashedPassword: {
     type: String,
     required: function () {
-      return !this.isSSO; // Required for non-SSO users
+      return !this.isSSO;
     },
   },
   ssoId: {
     type: String,
-    sparse: true, // Allows null for non-SSO users
-    unique: true, // Ensure unique ssoId
+    sparse: true,
+    unique: true,
   },
   ssoToken: {
     type: String,
@@ -63,24 +75,57 @@ const userSchema = new Schema({
   },
 });
 
-// Indexes - only define here, not in field definitions
+// Indexes
 userSchema.index({ organizationId: 1 });
 userSchema.index({ role: 1 });
+// NEW: Index for name searches
+userSchema.index({ lastName: 1, firstName: 1 });
+
+// NEW: Virtual for full name
+userSchema.virtual('fullName').get(function() {
+  return `${this.firstName} ${this.lastName}`;
+});
+
+// NEW: Virtual for display name (Last, First format)
+userSchema.virtual('displayName').get(function() {
+  return `${this.lastName}, ${this.firstName}`;
+});
+
+// Ensure virtuals are included in JSON output
+userSchema.set('toJSON', { virtuals: true });
+userSchema.set('toObject', { virtuals: true });
 
 // Static method to find user by username or email
 userSchema.statics.findByLoginCredential = function(loginCredential) {
   const User = this;
-  
-  // Check if loginCredential looks like an email
   const isEmail = /\S+@\S+\.\S+/.test(loginCredential);
   
   if (isEmail) {
-    // Search by email
     return User.findOne({ email: loginCredential.toLowerCase() });
   } else {
-    // Search by username (loginId)
     return User.findOne({ loginId: loginCredential.toLowerCase() });
   }
+};
+
+// NEW: Static method to search users by name
+userSchema.statics.searchByName = function(searchTerm, organizationId, role) {
+  const User = this;
+  const regex = new RegExp(searchTerm, 'i'); // Case-insensitive search
+  
+  const query = {
+    organizationId,
+    $or: [
+      { firstName: regex },
+      { lastName: regex },
+      { loginId: regex }
+    ]
+  };
+  
+  if (role) {
+    query.role = role;
+  }
+  
+  return User.find(query).sort({ lastName: 1, firstName: 1 });
 };
 
 // Update updatedAt on save

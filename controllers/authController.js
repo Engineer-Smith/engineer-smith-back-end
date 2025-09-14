@@ -1,4 +1,4 @@
-// /controllers/authController.js - Enhanced with username and email support
+// /controllers/authController.js - Enhanced with firstName/lastName support
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const bcrypt = require('bcrypt');
@@ -49,11 +49,20 @@ const clearAuthCookies = (res) => {
 // Register a new user (public)
 const register = async (req, res, next) => {
   try {
-    const { username, email, password, inviteCode, role } = req.body;
+    const { username, email, password, inviteCode, role, firstName, lastName } = req.body;
 
-    // Validate input
+    // Validate input - UPDATED with firstName/lastName validation
     if (!username || !password) {
       throw createError(400, 'Username and password are required');
+    }
+    if (!firstName || !lastName) {
+      throw createError(400, 'First name and last name are required');
+    }
+    if (firstName.length < 1 || firstName.length > 50) {
+      throw createError(400, 'First name must be 1-50 characters');
+    }
+    if (lastName.length < 1 || lastName.length > 50) {
+      throw createError(400, 'Last name must be 1-50 characters');
     }
     if (username.length < 3) {
       throw createError(400, 'Username must be at least 3 characters');
@@ -103,10 +112,12 @@ const register = async (req, res, next) => {
     // Hash password
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-    // Create user
+    // Create user - UPDATED with firstName/lastName
     const user = new User({
       loginId: username.toLowerCase(),
       email: email ? email.toLowerCase() : undefined,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
       hashedPassword,
       organizationId: organization._id,
       role: finalRole,
@@ -132,8 +143,11 @@ const register = async (req, res, next) => {
     res.status(201).json({
       success: true,
       user: {
-        id: user._id,
+        _id: user._id,
         loginId: user.loginId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName, // Virtual field
         email: user.email,
         organizationId: user.organizationId,
         role: user.role,
@@ -187,8 +201,11 @@ const login = async (req, res, next) => {
     res.json({
       success: true,
       user: {
-        id: user._id,
+        _id: user._id,
         loginId: user.loginId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName, // Virtual field
         email: user.email,
         organizationId: user.organizationId,
         role: user.role,
@@ -293,7 +310,7 @@ const logout = async (req, res, next) => {
   }
 };
 
-// Get current user info (authenticated)
+// Get current user info (authenticated) - UPDATED with firstName/lastName
 const getCurrentUser = async (req, res, next) => {
   try {
     const user = await User.findById(req.user.userId)
@@ -313,13 +330,17 @@ const getCurrentUser = async (req, res, next) => {
     res.json({
       success: true,
       user: {
-        id: user._id,
+        _id: user._id,
         loginId: user.loginId,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        fullName: user.fullName, // Virtual field
+        displayName: user.displayName, // Virtual field
         email: user.email,
         role: user.role,
         isSSO: user.isSSO,
         organization: user.organizationId, // This should be the populated object
-        organizationId: user.organizationId?._id, // Also include just the ID
+        organizationId: user.organizationId?._id, // Also include just the _id
         createdAt: user.createdAt,
       },
     });
@@ -345,9 +366,31 @@ const validateInviteCode = async (req, res, next) => {
     res.json({
       success: true,
       organization: {
-        id: organization._id,
+        _id: organization._id,
         name: organization.name,
       },
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+const getSocketToken = async (req, res, next) => {
+  try {
+    // User is already authenticated via middleware
+    const socketToken = jwt.sign(
+      {
+        userId: req.user.userId,
+        loginId: req.user.loginId,
+        type: 'socket'
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: '1h' }
+    );
+    
+    res.json({
+      success: true,
+      socketToken
     });
   } catch (error) {
     next(error);
@@ -363,4 +406,5 @@ module.exports = {
   refreshToken,
   getCurrentUser,
   validateInviteCode,
+  getSocketToken
 };

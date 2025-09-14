@@ -1,554 +1,950 @@
+// seeds/jsonSeeds.js - Comprehensive JSON questions with enhanced validation
 const mongoose = require('mongoose');
+require('dotenv').config();
+
+// Import models
 const Question = require('../models/Question');
 const Organization = require('../models/Organization');
 const User = require('../models/User');
-require('dotenv').config();
 
+// Import enhanced utilities
+const QuestionTemplateGenerator = require('../utils/questionTemplate');
+const QuestionSeedValidator = require('../utils/seedValidator');
+const BatchProcessor = require('../utils/batchProcessor');
+
+// Comprehensive JSON questions data - 60+ questions total
 const jsonQuestions = {
+  // 25 Multiple Choice Questions
   multipleChoice: [
+    // Basic JSON Syntax (15 questions)
     {
-      title: "JSON Syntax",
+      title: "JSON Object Syntax",
       description: "Which character pair denotes a JSON object?",
-      options: ["", "{}", "[]", "()", "<>"],
-      correctAnswer: 1,
       difficulty: "easy",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-structures"],
+      options: ["{}", "[]", "()", "<>"],
+      correctAnswer: 0
     },
     {
-      title: "JSON Data Types",
-      description: "Which of these is a valid JSON data type?",
-      options: ["", "Function", "Object", "Date", "Undefined"],
-      correctAnswer: 2,
-      difficulty: "easy",
-      tags: ["data-structures"]
-    },
-    {
-      title: "JSON Arrays",
+      title: "JSON Array Syntax",
       description: "Which character pair denotes a JSON array?",
-      options: ["", "{}", "[]", "()", "{}"],
-      correctAnswer: 2,
       difficulty: "easy",
-      tags: ["data-structures"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-structures"],
+      options: ["{}", "[]", "()", "<>"],
+      correctAnswer: 1
     },
     {
-      title: "JSON Parsing",
-      description: "Which JavaScript method parses a JSON string?",
-      options: ["", "JSON.stringify()", "JSON.parse()", "JSON.toObject()", "JSON.decode()"],
-      correctAnswer: 2,
+      title: "JSON String Syntax",
+      description: "How must JSON strings be enclosed?",
       difficulty: "easy",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "strings"],
+      options: ["Single quotes", "Double quotes", "Backticks", "Any of the above"],
+      correctAnswer: 1
     },
     {
-      title: "JSON Serialization",
-      description: "Which JavaScript method converts an object to a JSON string?",
-      options: ["", "JSON.parse()", "JSON.stringify()", "JSON.encode()", "JSON.toString()"],
-      correctAnswer: 2,
-      difficulty: "easy",
-      tags: ["objects"]
-    },
-    {
-      title: "JSON Values",
-      description: "Which value is NOT allowed in JSON?",
-      options: ["", "null", "undefined", "true", "0"],
-      correctAnswer: 2,
-      difficulty: "medium",
-      tags: ["data-structures"]
-    },
-    {
-      title: "JSON Object Keys",
+      title: "JSON Key Requirements",
       description: "What type must JSON object keys be?",
-      options: ["", "Number", "String", "Boolean", "Object"],
-      correctAnswer: 2,
       difficulty: "easy",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "objects"],
+      options: ["Number", "String", "Boolean", "Any primitive type"],
+      correctAnswer: 1
     },
     {
-      title: "JSON Nested Objects",
-      description: "What is the maximum depth of nested objects in JSON?",
-      options: ["", "No limit", "10", "100", "1000"],
-      correctAnswer: 1,
+      title: "JSON Valid Data Types",
+      description: "Which is NOT a valid JSON data type?",
       difficulty: "medium",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-types"],
+      options: ["string", "number", "undefined", "boolean"],
+      correctAnswer: 2
     },
     {
-      title: "JSON Validation",
-      description: "Which tool is commonly used to validate JSON?",
-      options: ["", "JSONLint", "ESLint", "JSHint", "TypeScript"],
-      correctAnswer: 1,
+      title: "JSON Number Format",
+      description: "Which number format is valid in JSON?",
       difficulty: "medium",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "numbers"],
+      options: ["42", "0x42", "42n", "Infinity"],
+      correctAnswer: 0
     },
     {
-      title: "JSON Arrays",
-      description: "Which is a valid JSON array?",
-      options: ["", "[1, 'text', true]", "[1, function() {}, null]", "[undefined, true]", "[1, {2: 3}]"],
-      correctAnswer: 1,
-      difficulty: "medium",
-      tags: ["data-structures"]
-    },
-    {
-      title: "JSON String Escaping",
-      description: "Which character escapes special characters in JSON strings?",
-      options: ["", "/", "\\", "*", "&"],
-      correctAnswer: 2,
-      difficulty: "medium",
-      tags: ["objects"]
-    },
-    {
-      title: "JSON Parsing Errors",
-      description: "What happens when JSON.parse() encounters invalid JSON?",
-      options: ["", "Returns null", "Throws SyntaxError", "Returns undefined", "Logs warning"],
-      correctAnswer: 2,
-      difficulty: "medium",
-      tags: ["error-handling"]
-    },
-    {
-      title: "JSON Object Access",
-      description: "How do you access a nested JSON object property in JavaScript?",
-      options: ["", "obj->prop", "obj.prop.subprop", "obj[prop][subprop]", "Both obj.prop.subprop and obj[prop][subprop]"],
-      correctAnswer: 4,
-      difficulty: "medium",
-      tags: ["objects"]
-    },
-    {
-      title: "JSON Schema",
-      description: "What is JSON Schema used for?",
-      options: ["", "Parsing JSON", "Validating JSON structure", "Stringifying objects", "Formatting JSON"],
-      correctAnswer: 2,
-      difficulty: "hard",
-      tags: ["objects"]
-    },
-    {
-      title: "JSON Performance",
-      description: "Which operation is generally faster in JavaScript?",
-      options: ["", "JSON.parse()", "JSON.stringify()", "Both are equal", "Depends on data size"],
-      correctAnswer: 4,
-      difficulty: "hard",
-      tags: ["objects"]
-    }
-  ],
-  trueFalse: [
-    {
-      title: "JSON Syntax",
-      description: "JSON objects must have string keys.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
+      title: "JSON Null Value",
+      description: "How is null represented in JSON?",
       difficulty: "easy",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax"],
+      options: ["NULL", "null", "nil", "None"],
+      correctAnswer: 1
     },
     {
-      title: "JSON Data Types",
-      description: "JSON supports functions as values.",
-      options: ["", "true", "false"],
-      correctAnswer: false,
+      title: "JSON Boolean Values",
+      description: "Which boolean values are valid in JSON?",
       difficulty: "easy",
-      tags: ["data-structures"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "booleans"],
+      options: ["True/False", "TRUE/FALSE", "true/false", "1/0"],
+      correctAnswer: 2
     },
     {
-      title: "JSON Arrays",
-      description: "JSON arrays can contain mixed data types.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
-      difficulty: "easy",
-      tags: ["data-structures"]
-    },
-    {
-      title: "JSON Parsing",
-      description: "JSON.parse() can throw an error on invalid input.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
+      title: "JSON Escape Characters",
+      description: "Which character is used to escape special characters in JSON strings?",
       difficulty: "medium",
-      tags: ["error-handling"]
-    },
-    {
-      title: "JSON Serialization",
-      description: "JSON.stringify() converts undefined to null.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
-      difficulty: "medium",
-      tags: ["objects"]
-    },
-    {
-      title: "JSON Whitespace",
-      description: "Whitespace is significant in JSON data.",
-      options: ["", "true", "false"],
-      correctAnswer: false,
-      difficulty: "easy",
-      tags: ["objects"]
-    },
-    {
-      title: "JSON Nested Objects",
-      description: "JSON supports nested objects and arrays.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
-      difficulty: "easy",
-      tags: ["objects", "data-structures"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "strings"],
+      options: ["/", "\\\\", "%", "&"],
+      correctAnswer: 1
     },
     {
       title: "JSON Comments",
-      description: "JSON allows comments like JavaScript.",
-      options: ["", "true", "false"],
-      correctAnswer: false,
+      description: "Are comments allowed in JSON?",
       difficulty: "medium",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax"],
+      options: ["Yes, with //", "Yes, with /* */", "Yes, with #", "No, comments are not allowed"],
+      correctAnswer: 3
     },
     {
-      title: "JSON Validation",
-      description: "Invalid JSON can be validated using try/catch with JSON.parse().",
-      options: ["", "true", "false"],
-      correctAnswer: true,
+      title: "JSON Whitespace",
+      description: "How does JSON handle whitespace?",
       difficulty: "medium",
-      tags: ["error-handling"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax"],
+      options: ["Whitespace is significant", "Whitespace is ignored", "Only leading whitespace matters", "Only trailing whitespace matters"],
+      correctAnswer: 1
     },
     {
-      title: "JSON Numbers",
-      description: "JSON supports both integers and floating-point numbers.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
-      difficulty: "easy",
-      tags: ["data-structures"]
-    },
-    {
-      title: "JSON Escaping",
-      description: "Special characters in JSON strings must be escaped.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
+      title: "JSON Trailing Commas",
+      description: "Are trailing commas allowed in JSON?",
       difficulty: "medium",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax"],
+      options: ["Always allowed", "Never allowed", "Only in arrays", "Only in objects"],
+      correctAnswer: 1
     },
     {
-      title: "JSON Schema",
-      description: "JSON Schema can enforce specific data types.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
+      title: "JSON Unicode Support",
+      description: "How are Unicode characters represented in JSON strings?",
       difficulty: "hard",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "strings"],
+      options: ["\\\\uXXXX format", "\\\\xXX format", "%XX format", "Direct Unicode only"],
+      correctAnswer: 0
     },
     {
-      title: "JSON Object Keys",
-      description: "JSON object keys must be unique.",
-      options: ["", "true", "false"],
-      correctAnswer: true,
+      title: "JSON File Extension",
+      description: "What is the standard file extension for JSON files?",
       difficulty: "easy",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax"],
+      options: [".js", ".json", ".txt", ".data"],
+      correctAnswer: 1
     },
     {
-      title: "JSON Parsing",
-      description: "JSON.parse() modifies the original JSON string.",
-      options: ["", "true", "false"],
-      correctAnswer: false,
+      title: "JSON MIME Type",
+      description: "What is the correct MIME type for JSON?",
       difficulty: "medium",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "http-https", "rest-api"],
+      options: ["text/json", "application/json", "text/javascript", "application/javascript"],
+      correctAnswer: 1
+    },
+
+    // Advanced JSON Concepts (10 questions)
+    {
+      title: "JSON Schema Purpose",
+      description: "What is JSON Schema used for?",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-schema", "json-validation", "data-structures"],
+      options: ["Parsing JSON", "Validating JSON structure", "Minifying JSON", "Converting JSON to XML"],
+      correctAnswer: 1
     },
     {
-      title: "JSON Serialization",
-      description: "JSON.stringify() can handle circular references by default.",
-      options: ["", "true", "false"],
-      correctAnswer: false,
+      title: "JSON-LD",
+      description: "What does JSON-LD stand for?",
       difficulty: "hard",
-      tags: ["error-handling"]
+      preferredCategory: "logic",
+      tags: ["json", "data-structures"],
+      options: ["JSON Linked Data", "JSON Large Data", "JSON Local Database", "JSON Live Document"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Patch",
+      description: "What is JSON Patch used for?",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-api", "data-structures"],
+      options: ["Fixing invalid JSON", "Describing changes to JSON documents", "Compressing JSON", "Encrypting JSON"],
+      correctAnswer: 1
+    },
+    {
+      title: "JSON Path",
+      description: "What is JSONPath used for?",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-parsing", "data-structures"],
+      options: ["File system paths", "Querying JSON data", "URL routing", "API endpoints"],
+      correctAnswer: 1
+    },
+    {
+      title: "JSON Lines Format",
+      description: "What characterizes JSON Lines (JSONL) format?",
+      difficulty: "medium",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax"],
+      options: ["Compressed JSON", "One JSON object per line", "JSON with line numbers", "Multi-line JSON strings"],
+      correctAnswer: 1
+    },
+    {
+      title: "JSON Streaming",
+      description: "What is a challenge with streaming large JSON files?",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-parsing", "performance-web"],
+      options: ["File size limits", "Network bandwidth", "Parser memory usage", "All of the above"],
+      correctAnswer: 3
+    },
+    {
+      title: "JSON vs XML",
+      description: "What is a key advantage of JSON over XML?",
+      difficulty: "medium",
+      preferredCategory: "syntax",
+      tags: ["json", "data-structures"],
+      options: ["Better validation", "Smaller size", "More features", "Older standard"],
+      correctAnswer: 1
+    },
+    {
+      title: "JSON Security",
+      description: "What is a common security concern with JSON?",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "security", "json-parsing"],
+      options: ["Buffer overflow", "Injection attacks", "Memory leaks", "All of the above"],
+      correctAnswer: 1
+    },
+    {
+      title: "JSON Canonicalization",
+      description: "What is JSON canonicalization?",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-serialization", "data-structures"],
+      options: ["Converting to XML", "Standardizing format for comparison", "Compressing data", "Adding validation"],
+      correctAnswer: 1
+    },
+    {
+      title: "JSON Binary Formats",
+      description: "Which is an example of a binary JSON format?",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-serialization", "performance-web"],
+      options: ["BSON", "JSONB", "MessagePack", "All of the above"],
+      correctAnswer: 3
     }
   ],
-  codeChallenge: [
+
+  // 25 True/False Questions
+  trueFalse: [
+    // Basic JSON Rules (15 questions)
     {
-      title: "Parse JSON String",
-      description: "Write a function to parse a JSON string and return an object.",
-      options: ["function parseJson(jsonString) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "{\"name\": \"John\"}", output: "{name: 'John'}", hidden: false },
-        { input: "{}", output: "{}", hidden: false },
-        { input: "Error handling", output: "Handles invalid JSON", hidden: true }
-      ],
+      title: "JSON String Keys",
+      description: "JSON object keys must be strings enclosed in double quotes.",
       difficulty: "easy",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "objects"],
+      options: ["True", "False"],
+      correctAnswer: 0
     },
     {
-      title: "Create JSON Object",
-      description: "Write a function to create a JSON string from an object.",
-      options: ["function createJson(name, age) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "John, 30", output: "{\"name\":\"John\",\"age\":30}", hidden: false },
-        { input: "Empty object", output: "{}", hidden: false },
-        { input: "Correct format", output: "Valid JSON string", hidden: true }
-      ],
+      title: "JSON Function Support",
+      description: "JSON supports functions as values.",
       difficulty: "easy",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-types"],
+      options: ["True", "False"],
+      correctAnswer: 1
     },
     {
-      title: "Validate JSON",
-      description: "Write a function to validate a JSON string.",
-      options: ["function isValidJson(jsonString) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "{\"valid\": true}", output: "true", hidden: false },
-        { input: "{invalid}", output: "false", hidden: false },
-        { input: "Error handling", output: "Uses try/catch", hidden: true }
-      ],
+      title: "JSON Mixed Arrays",
+      description: "JSON arrays can contain mixed data types.",
+      difficulty: "easy",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "arrays"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Single Quotes",
+      description: "JSON strings can be enclosed in single quotes.",
+      difficulty: "easy",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "strings"],
+      options: ["True", "False"],
+      correctAnswer: 1
+    },
+    {
+      title: "JSON Undefined Values",
+      description: "JSON supports undefined as a value.",
       difficulty: "medium",
-      tags: ["error-handling"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-types"],
+      options: ["True", "False"],
+      correctAnswer: 1
     },
     {
-      title: "Access Nested JSON",
-      description: "Write a function to access a nested property in a JSON object.",
-      options: ["function getNestedValue(jsonObj, key1, key2) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "{user: {name: 'John'}}", output: "John", hidden: false },
-        { input: "Missing key", output: "undefined", hidden: false },
-        { input: "Safe access", output: "Handles missing properties", hidden: true }
-      ],
+      title: "JSON Nested Structures",
+      description: "JSON supports nested objects and arrays.",
+      difficulty: "easy",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-structures"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Comment Support",
+      description: "Standard JSON allows comments.",
       difficulty: "medium",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax"],
+      options: ["True", "False"],
+      correctAnswer: 1
     },
     {
-      title: "Filter JSON Array",
-      description: "Write a function to filter objects in a JSON array by a property value.",
-      options: ["function filterJsonArray(jsonArray, key, value) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "[{age: 30}, {age: 20}], age, 30", output: "[{age: 30}]", hidden: false },
-        { input: "[], age, 30", output: "[]", hidden: false },
-        { input: "Correct filtering", output: "Filters by key/value", hidden: true }
-      ],
+      title: "JSON Key Uniqueness",
+      description: "JSON object keys must be unique within the same object.",
       difficulty: "medium",
-      tags: ["data-structures"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "objects"],
+      options: ["True", "False"],
+      correctAnswer: 0
     },
     {
-      title: "Merge JSON Objects",
-      description: "Write a function to merge two JSON objects.",
-      options: ["function mergeJson(obj1, obj2) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "{a: 1}, {b: 2}", output: "{a: 1, b: 2}", hidden: false },
-        { input: "{}, {}", output: "{}", hidden: false },
-        { input: "Conflict handling", output: "Handles overlapping keys", hidden: true }
-      ],
+      title: "JSON Hex Numbers",
+      description: "JSON supports hexadecimal number notation.",
       difficulty: "medium",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "numbers"],
+      options: ["True", "False"],
+      correctAnswer: 1
     },
     {
-      title: "Transform JSON",
-      description: "Write a function to transform a JSON array by doubling numbers.",
-      options: ["function doubleNumbers(jsonArray) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "[1, 2, 3]", output: "[2, 4, 6]", hidden: false },
-        { input: "[]", output: "[]", hidden: false },
-        { input: "Type checking", output: "Handles only numbers", hidden: true }
-      ],
+      title: "JSON Date Objects",
+      description: "JSON has native support for Date objects.",
       difficulty: "medium",
-      tags: ["data-structures"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-types"],
+      options: ["True", "False"],
+      correctAnswer: 1
     },
     {
-      title: "Create Nested JSON",
-      description: "Write a function to create a nested JSON object.",
-      options: ["function createNestedJson(name, address) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "John, {city: 'NY'}", output: "{user: {name: 'John', address: {city: 'NY'}}}", hidden: false },
-        { input: "Empty input", output: "{user: {}}", hidden: false },
-        { input: "Correct nesting", output: "Valid nested structure", hidden: true }
-      ],
+      title: "JSON Case Sensitivity",
+      description: "JSON is case-sensitive for all values.",
+      difficulty: "medium",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Empty Objects",
+      description: "Empty objects {} are valid JSON.",
+      difficulty: "easy",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "objects"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Empty Arrays",
+      description: "Empty arrays [] are valid JSON.",
+      difficulty: "easy",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "arrays"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Root Arrays",
+      description: "A JSON document can have an array as its root element.",
+      difficulty: "medium",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "arrays"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Multiline Strings",
+      description: "JSON strings can span multiple lines without escaping.",
+      difficulty: "medium",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "strings"],
+      options: ["True", "False"],
+      correctAnswer: 1
+    },
+
+    // Advanced JSON Concepts (10 questions)
+    {
+      title: "JSON Schema Validation",
+      description: "JSON Schema can validate the structure and data types of JSON documents.",
       difficulty: "hard",
-      tags: ["objects"]
+      preferredCategory: "logic",
+      tags: ["json", "json-schema", "json-validation"],
+      options: ["True", "False"],
+      correctAnswer: 0
     },
     {
-      title: "Flatten JSON Object",
-      description: "Write a function to flatten a nested JSON object.",
-      options: ["function flattenJson(jsonObj) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "{a: {b: 1}}", output: "{a.b: 1}", hidden: false },
-        { input: "{}", output: "{}", hidden: false },
-        { input: "Correct flattening", output: "Handles nested objects", hidden: true }
-      ],
+      title: "JSON Circular References",
+      description: "JSON format naturally supports circular references.",
       difficulty: "hard",
-      tags: ["objects"]
+      preferredCategory: "logic",
+      tags: ["json", "json-serialization", "data-structures"],
+      options: ["True", "False"],
+      correctAnswer: 1
     },
     {
-      title: "Parse and Summarize",
-      description: "Write a function to sum numbers in a JSON array.",
-      options: ["function sumJsonArray(jsonArray) {\n  // Your code here\n}"],
-      testCases: [
-        { input: "[1, 2, 3]", output: "6", hidden: false },
-        { input: "[]", output: "0", hidden: false },
-        { input: "Type checking", output: "Handles only numbers", hidden: true }
-      ],
+      title: "JSON UTF-8 Encoding",
+      description: "JSON documents should be encoded in UTF-8.",
       difficulty: "medium",
-      tags: ["data-structures"]
+      preferredCategory: "syntax",
+      tags: ["json", "encoding"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Performance",
+      description: "JSON is generally faster to parse than XML.",
+      difficulty: "medium",
+      preferredCategory: "logic",
+      tags: ["json", "performance-web", "json-parsing"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Patch Operations",
+      description: "JSON Patch can add, remove, and replace values in JSON documents.",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-api", "data-structures"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Web Tokens",
+      description: "JWTs use JSON format for their payload.",
+      difficulty: "medium",
+      preferredCategory: "logic",
+      tags: ["json", "json-web-tokens", "security", "authentication"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON API Standard",
+      description: "JSON API is a specification for building APIs with JSON.",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-api", "rest-api"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Binary Efficiency",
+      description: "Binary JSON formats like BSON are more space-efficient than text JSON.",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-serialization", "performance-web"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Streaming Parsers",
+      description: "Streaming JSON parsers can process large files without loading everything into memory.",
+      difficulty: "hard",
+      preferredCategory: "logic",
+      tags: ["json", "json-parsing", "performance-web"],
+      options: ["True", "False"],
+      correctAnswer: 0
+    },
+    {
+      title: "JSON Content Negotiation",
+      description: "HTTP Accept headers can specify JSON as the preferred response format.",
+      difficulty: "medium",
+      preferredCategory: "logic",
+      tags: ["json", "http-https", "rest-api"],
+      options: ["True", "False"],
+      correctAnswer: 0
     }
   ],
-  codeDebugging: [
+
+  // 15 Fill-in-the-Blank Questions
+  fillInTheBlank: [
     {
-      title: "Fix JSON Parsing",
-      description: "This JSON parsing fails on invalid input. Fix the error handling.",
-      options: ["function parseJson(jsonString) {\n  return JSON.parse(jsonString);\n}"],
-      testCases: [
-        { input: "Error handling", output: "Adds try/catch", hidden: false },
-        { input: "Valid JSON", output: "Parses correctly", hidden: false },
-        { input: "Invalid JSON", output: "Returns fallback value", hidden: true }
-      ],
-      difficulty: "medium",
-      tags: ["error-handling"]
+      title: "Basic JSON Object Structure",
+      description: "Complete the basic JSON object structure with proper syntax:",
+      difficulty: "easy",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "objects"],
+      codeTemplate: `___blank1___
+  "name": "John",
+  "age": ___blank2___,
+  "active": ___blank3___
+___blank4___`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['{'], caseSensitive: true, points: 1 },
+        { id: 'blank2', correctAnswers: ['30', '25', '35', '20'], caseSensitive: false, points: 1 },
+        { id: 'blank3', correctAnswers: ['true', 'false'], caseSensitive: false, points: 1 },
+        { id: 'blank4', correctAnswers: ['}'], caseSensitive: true, points: 1 }
+      ]
     },
     {
-      title: "Fix JSON Serialization",
-      description: "This serialization fails on undefined. Fix the JSON.stringify call.",
-      options: ["function createJson(obj) {\n  return JSON.stringify(obj);\n}"],
-      testCases: [
-        { input: "Undefined handling", output: "Handles undefined values", hidden: false },
-        { input: "Valid object", output: "Stringifies correctly", hidden: false },
-        { input: "Correct format", output: "Returns valid JSON", hidden: true }
-      ],
-      difficulty: "medium",
-      tags: ["objects"]
+      title: "JSON Array with Mixed Types",
+      description: "Complete the JSON array containing different data types:",
+      difficulty: "easy",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "arrays", "data-types"],
+      codeTemplate: `___blank1___
+  "apple",
+  ___blank2___,
+  ___blank3___,
+  ___blank4___
+___blank5___`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['['], caseSensitive: true, points: 1 },
+        { id: 'blank2', correctAnswers: ['42', '100', '1', '0'], caseSensitive: false, points: 1 },
+        { id: 'blank3', correctAnswers: ['true', 'false'], caseSensitive: false, points: 1 },
+        { id: 'blank4', correctAnswers: ['null'], caseSensitive: false, points: 1 },
+        { id: 'blank5', correctAnswers: [']'], caseSensitive: true, points: 1 }
+      ]
     },
     {
-      title: "Fix Nested Access",
-      description: "This JSON access causes errors. Fix the property access.",
-      options: ["function getName(jsonObj) {\n  return jsonObj.user.name;\n}"],
-      testCases: [
-        { input: "Safe access", output: "Uses optional chaining or checks", hidden: false },
-        { input: "Valid access", output: "Returns name if exists", hidden: false },
-        { input: "No errors", output: "Avoids undefined errors", hidden: true }
-      ],
+      title: "Nested JSON Structure",
+      description: "Complete the nested JSON object with proper nesting:",
       difficulty: "medium",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "objects", "data-structures"],
+      codeTemplate: `{
+  "user": ___blank1___
+    "id": 1,
+    "profile": {
+      "email": "john@example.com",
+      "verified": ___blank2___
+    }
+  ___blank3___
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['{'], caseSensitive: true, points: 1 },
+        { id: 'blank2', correctAnswers: ['true', 'false'], caseSensitive: false, points: 1 },
+        { id: 'blank3', correctAnswers: ['}'], caseSensitive: true, points: 1 }
+      ]
     },
     {
-      title: "Fix JSON Array Filter",
-      description: "This filter doesn’t work. Fix the array filtering logic.",
-      options: ["function filterJson(jsonArray) {\n  return jsonArray.filter(item => item);\n}"],
-      testCases: [
-        { input: "Filter logic", output: "Filters by specific property", hidden: false },
-        { input: "Array handling", output: "Maintains array structure", hidden: false },
-        { input: "Correct results", output: "Returns filtered array", hidden: true }
-      ],
-      difficulty: "medium",
-      tags: ["data-structures"]
-    },
-    {
-      title: "Fix JSON Merge",
-      description: "This merge function overwrites keys incorrectly. Fix the merge logic.",
-      options: ["function mergeJson(obj1, obj2) {\n  return { ...obj1 };\n}"],
-      testCases: [
-        { input: "Merge logic", output: "Merges both objects", hidden: false },
-        { input: "Key preservation", output: "Preserves all keys", hidden: false },
-        { input: "Correct merge", output: "Handles overlapping keys", hidden: true }
-      ],
+      title: "JSON String Escaping",
+      description: "Complete the JSON with properly escaped string values:",
       difficulty: "hard",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "strings"],
+      codeTemplate: `{
+  "message": "She said ___blank1___Hello___blank2___",
+  "path": "C:___blank3___Users___blank4___Documents",
+  "unicode": "___blank5___u0041___blank6___u0042"
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['\\"'], caseSensitive: true, points: 2 },
+        { id: 'blank2', correctAnswers: ['\\"'], caseSensitive: true, points: 1 },
+        { id: 'blank3', correctAnswers: ['\\\\'], caseSensitive: true, points: 2 },
+        { id: 'blank4', correctAnswers: ['\\\\'], caseSensitive: true, points: 1 },
+        { id: 'blank5', correctAnswers: ['\\'], caseSensitive: true, points: 1 },
+        { id: 'blank6', correctAnswers: ['\\'], caseSensitive: true, points: 1 }
+      ]
     },
     {
-      title: "Fix JSON Validation",
-      description: "This validation always returns true. Fix the validation logic.",
-      options: ["function isValidJson(jsonString) {\n  return true;\n}"],
-      testCases: [
-        { input: "Validation logic", output: "Uses JSON.parse with try/catch", hidden: false },
-        { input: "Invalid JSON", output: "Returns false for invalid", hidden: false },
-        { input: "Valid JSON", output: "Returns true for valid", hidden: true }
-      ],
+      title: "JSON Array of Objects",
+      description: "Complete the JSON array containing object elements:",
       difficulty: "medium",
-      tags: ["error-handling"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "arrays", "objects"],
+      codeTemplate: `___blank1___
+  ___blank2___
+    "name": "Apple",
+    "price": ___blank3___
+  },
+  {
+    "name": "Orange",
+    "price": 0.75
+  }
+___blank4___`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['['], caseSensitive: true, points: 1 },
+        { id: 'blank2', correctAnswers: ['{'], caseSensitive: true, points: 1 },
+        { id: 'blank3', correctAnswers: ['1.50', '1.25', '2.00', '1.0'], caseSensitive: false, points: 1 },
+        { id: 'blank4', correctAnswers: [']'], caseSensitive: true, points: 1 }
+      ]
     },
     {
-      title: "Fix JSON Array Transform",
-      description: "This transform doesn’t handle numbers. Fix the mapping logic.",
-      options: ["function doubleNumbers(jsonArray) {\n  return jsonArray.map(item => item);\n}"],
-      testCases: [
-        { input: "Number transform", output: "Doubles number values", hidden: false },
-        { input: "Array handling", output: "Maintains array structure", hidden: false },
-        { input: "Type checking", output: "Handles only numbers", hidden: true }
-      ],
+      title: "JSON Configuration Structure",
+      description: "Complete this JSON configuration object:",
       difficulty: "medium",
-      tags: ["data-structures"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "objects", "data-structures"],
+      codeTemplate: `{
+  "___blank1___": "myapp",
+  "version": "___blank2___",
+  "server": {
+    "host": "localhost",
+    "port": ___blank3___,
+    "ssl": ___blank4___
+  },
+  "features": ___blank5___"auth", "logging", "cache"___blank6___
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['name', 'appName'], caseSensitive: false, points: 1 },
+        { id: 'blank2', correctAnswers: ['1.0.0', '2.0.0', '1.0'], caseSensitive: false, points: 1 },
+        { id: 'blank3', correctAnswers: ['8080', '3000', '80', '443'], caseSensitive: false, points: 1 },
+        { id: 'blank4', correctAnswers: ['true', 'false'], caseSensitive: false, points: 1 },
+        { id: 'blank5', correctAnswers: ['['], caseSensitive: true, points: 1 },
+        { id: 'blank6', correctAnswers: [']'], caseSensitive: true, points: 1 }
+      ]
     },
     {
-      title: "Fix Nested JSON Creation",
-      description: "This function creates invalid JSON. Fix the nesting logic.",
-      options: ["function createNestedJson(name) {\n  return { user: name };\n}"],
-      testCases: [
-        { input: "Nested structure", output: "Creates valid nested JSON", hidden: false },
-        { input: "Property handling", output: "Nests name correctly", hidden: false },
-        { input: "Valid JSON", output: "Returns valid JSON object", hidden: true }
-      ],
+      title: "Basic JSON Schema",
+      description: "Complete this basic JSON Schema definition:",
       difficulty: "hard",
-      tags: ["objects"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-schema", "json-validation"],
+      codeTemplate: `{
+  "___blank1___": "https://json-schema.org/draft/2020-12/schema",
+  "___blank2___": "object",
+  "properties": ___blank3___
+    "name": {
+      "type": "___blank4___"
+    },
+    "age": {
+      "type": "___blank5___"
+    }
+  ___blank6___
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['$schema'], caseSensitive: true, points: 2 },
+        { id: 'blank2', correctAnswers: ['type'], caseSensitive: true, points: 1 },
+        { id: 'blank3', correctAnswers: ['{'], caseSensitive: true, points: 1 },
+        { id: 'blank4', correctAnswers: ['string'], caseSensitive: false, points: 1 },
+        { id: 'blank5', correctAnswers: ['number', 'integer'], caseSensitive: false, points: 1 },
+        { id: 'blank6', correctAnswers: ['}'], caseSensitive: true, points: 1 }
+      ]
     },
     {
-      title: "Fix JSON String Escaping",
-      description: "This JSON string has unescaped characters. Fix the string creation.",
-      options: ["function createJsonString(text) {\n  return `{\"text\": \"${text}\"}`;\n}"],
-      testCases: [
-        { input: "Escaping", output: "Handles special characters", hidden: false },
-        { input: "Valid JSON", output: "Returns valid JSON string", hidden: false },
-        { input: "Correct format", output: "Escapes quotes correctly", hidden: true }
-      ],
-      difficulty: "medium",
-      tags: ["objects"]
+      title: "JSON API Response Format",
+      description: "Complete the JSON API specification response structure:",
+      difficulty: "hard",
+      preferredCategory: "syntax",
+      tags: ["json", "json-api", "rest-api"],
+      codeTemplate: `{
+  "___blank1___": {
+    "___blank2___": "users",
+    "id": "1",
+    "attributes": {
+      "name": "John Doe",
+      "email": "john@example.com"
+    }
+  }
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['data'], caseSensitive: true, points: 2 },
+        { id: 'blank2', correctAnswers: ['type'], caseSensitive: true, points: 2 }
+      ]
     },
     {
-      title: "Fix JSON Summarization",
-      description: "This sum function doesn’t work. Fix the array summation.",
-      options: ["function sumJsonArray(jsonArray) {\n  return jsonArray.reduce((sum, item) => sum, 0);\n}"],
-      testCases: [
-        { input: "Sum logic", output: "Sums number values", hidden: false },
-        { input: "Array handling", output: "Maintains array structure", hidden: false },
-        { input: "Type checking", output: "Handles only numbers", hidden: true }
-      ],
+      title: "JSON with Null and Optional Values",
+      description: "Complete the JSON structure handling null and optional values:",
       difficulty: "medium",
-      tags: ["data-structures"]
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-types"],
+      codeTemplate: `{
+  "name": "John",
+  "middleName": ___blank1___,
+  "phone": ___blank2___,
+  "active": ___blank3___,
+  "lastLogin": ___blank4___
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['null'], caseSensitive: false, points: 1 },
+        { id: 'blank2', correctAnswers: ['"555-0123"', 'null'], caseSensitive: false, points: 1 },
+        { id: 'blank3', correctAnswers: ['true', 'false'], caseSensitive: false, points: 1 },
+        { id: 'blank4', correctAnswers: ['null', '"2023-12-01"'], caseSensitive: false, points: 1 }
+      ]
+    },
+    {
+      title: "JSON Number Formats",
+      description: "Complete the JSON with various valid number formats:",
+      difficulty: "medium",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "numbers"],
+      codeTemplate: `{
+  "integer": ___blank1___,
+  "decimal": ___blank2___,
+  "negative": ___blank3___,
+  "zero": ___blank4___,
+  "scientific": ___blank5___
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['42', '100', '1'], caseSensitive: false, points: 1 },
+        { id: 'blank2', correctAnswers: ['3.14', '1.5', '2.0'], caseSensitive: false, points: 1 },
+        { id: 'blank3', correctAnswers: ['-42', '-1', '-10'], caseSensitive: false, points: 1 },
+        { id: 'blank4', correctAnswers: ['0'], caseSensitive: false, points: 1 },
+        { id: 'blank5', correctAnswers: ['1.23e10', '1e5', '2.5e-3'], caseSensitive: false, points: 2 }
+      ]
+    },
+    {
+      title: "Complex JSON Data Structure",
+      description: "Complete this complex nested JSON structure:",
+      difficulty: "hard",
+      preferredCategory: "syntax",
+      tags: ["json", "json-syntax", "data-structures", "objects"],
+      codeTemplate: `{
+  "users": ___blank1___
+    {
+      "id": 1,
+      "name": "Alice",
+      "roles": ___blank2___"admin", "user"___blank3___
+    },
+    {
+      "id": 2,
+      "name": "Bob",
+      "roles": ["user"]
+    }
+  ___blank4___,
+  "meta": {
+    "total": ___blank5___,
+    "page": 1
+  }
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['['], caseSensitive: true, points: 1 },
+        { id: 'blank2', correctAnswers: ['['], caseSensitive: true, points: 1 },
+        { id: 'blank3', correctAnswers: [']'], caseSensitive: true, points: 1 },
+        { id: 'blank4', correctAnswers: [']'], caseSensitive: true, points: 1 },
+        { id: 'blank5', correctAnswers: ['2'], caseSensitive: false, points: 1 }
+      ]
+    },
+    {
+      title: "JSON Error Response",
+      description: "Complete the JSON error response structure:",
+      difficulty: "medium",
+      preferredCategory: "syntax",
+      tags: ["json", "json-api", "error-handling"],
+      codeTemplate: `{
+  "___blank1___": {
+    "code": ___blank2___,
+    "message": "___blank3___",
+    "details": ___blank4___
+  }
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['error', 'errors'], caseSensitive: false, points: 1 },
+        { id: 'blank2', correctAnswers: ['404', '400', '500'], caseSensitive: false, points: 1 },
+        { id: 'blank3', correctAnswers: ['Not Found', 'Bad Request', 'Validation Error'], caseSensitive: false, points: 1 },
+        { id: 'blank4', correctAnswers: ['null', '[]', '{}'], caseSensitive: false, points: 1 }
+      ]
+    },
+    {
+      title: "JSON Web Token Structure",
+      description: "Complete the JSON Web Token payload structure:",
+      difficulty: "hard",
+      preferredCategory: "syntax",
+      tags: ["json", "json-web-tokens", "security", "authentication"],
+      codeTemplate: `{
+  "___blank1___": "1234567890",
+  "___blank2___": "John Doe",
+  "___blank3___": 1516239022,
+  "___blank4___": 1516242622,
+  "___blank5___": "example.com"
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['sub'], caseSensitive: false, points: 2 },
+        { id: 'blank2', correctAnswers: ['name'], caseSensitive: false, points: 1 },
+        { id: 'blank3', correctAnswers: ['iat'], caseSensitive: false, points: 2 },
+        { id: 'blank4', correctAnswers: ['exp'], caseSensitive: false, points: 2 },
+        { id: 'blank5', correctAnswers: ['iss'], caseSensitive: false, points: 2 }
+      ]
+    },
+    {
+      title: "JSON-LD Linked Data",
+      description: "Complete the JSON-LD (Linked Data) structure:",
+      difficulty: "hard",
+      preferredCategory: "syntax",
+      tags: ["json", "data-structures"],
+      codeTemplate: `{
+  "___blank1___": "https://schema.org/",
+  "___blank2___": "Person",
+  "name": "John Doe",
+  "jobTitle": "Software Engineer",
+  "url": "___blank3___"
+}`,
+      blanks: [
+        { id: 'blank1', correctAnswers: ['@context'], caseSensitive: true, points: 2 },
+        { id: 'blank2', correctAnswers: ['@type'], caseSensitive: true, points: 2 },
+        { id: 'blank3', correctAnswers: ['https://johndoe.com', 'http://johndoe.com'], caseSensitive: false, points: 1 }
+      ]
     }
   ]
 };
 
 async function seedJsonQuestions() {
+  const startTime = Date.now();
+  const validator = new QuestionSeedValidator();
+  const processor = new BatchProcessor({ logProgress: true, batchSize: 15 });
+
   try {
-    console.log('Seeding JSON questions...');
+    console.log('🚀 Starting COMPREHENSIVE JSON question seeding with enhanced validation...\n');
 
+    // Connect to MongoDB
     await mongoose.connect(process.env.MONGO_URL);
+    console.log('✅ Connected to MongoDB');
 
+    // Get super organization and user
     const superOrg = await Organization.findOne({ isSuperOrg: true });
     if (!superOrg) throw new Error('No super organization found');
 
     const superUser = await User.findOne({ organizationId: superOrg._id, role: 'admin' });
     if (!superUser) throw new Error('No super admin user found');
 
-    await Question.deleteMany({ language: 'json' });
+    console.log(`🏢 Using organization: ${superOrg.name}`);
+    console.log(`👤 Using user: ${superUser.name || 'Admin User'}\n`);
 
+    // Count questions by type with enhanced stats
+    const questionCounts = Object.entries(jsonQuestions).map(([type, questions]) =>
+      `${type}: ${questions.length}`
+    ).join(', ');
+    const totalQuestions = Object.values(jsonQuestions).reduce((sum, arr) => sum + arr.length, 0);
+    const fillInBlankCount = jsonQuestions.fillInTheBlank.length;
+    const totalBlanks = jsonQuestions.fillInTheBlank.reduce((sum, q) => sum + q.blanks.length, 0);
+    
+    console.log(`📊 COMPREHENSIVE Question breakdown: ${questionCounts}`);
+    console.log(`📈 Total questions to seed: ${totalQuestions}`);
+    console.log(`🔥 Fill-in-blank questions: ${fillInBlankCount} with ${totalBlanks} total blanks`);
+    console.log(`🎯 Difficulty distribution: Easy, Medium, Hard across all types\n`);
+
+    // Create backup of existing questions
+    const backup = await processor.createBackup('json');
+
+    // Delete existing JSON questions
+    await processor.deleteByLanguage('json');
+
+    // Prepare all questions with proper templates
+    console.log('🔧 Preparing questions with templates...');
     const allQuestions = [];
 
-    ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'].forEach(type => {
-      jsonQuestions[type].forEach(q => {
-        allQuestions.push({
-          ...q,
-          type,
-          language: 'json',
-          status: 'draft',
-          isGlobal: true,
-          organizationId: superOrg._id,
-          createdBy: superUser._id
-        });
-      });
+    for (const [type, questions] of Object.entries(jsonQuestions)) {
+      console.log(`  Processing ${questions.length} ${type} questions...`);
+
+      for (const questionData of questions) {
+        try {
+          const templated = QuestionTemplateGenerator.createQuestionTemplate(
+            { ...questionData, type, language: 'json', status: 'active' },
+            superOrg._id,
+            superUser._id
+          );
+          allQuestions.push(templated);
+        } catch (error) {
+          console.error(`  ❌ Template generation failed for "${questionData.title}": ${error.message}`);
+        }
+      }
+    }
+
+    console.log(`📊 Generated ${allQuestions.length} templated questions\n`);
+
+    // Enhanced validation (JSON is syntax-only, no code execution)
+    console.log('🔍 Running COMPREHENSIVE validation with enhanced fill-in-blank testing...');
+    const validationResults = await validator.validateBatch(allQuestions, {
+      testAutoGrading: false // JSON questions are syntax-only
     });
 
-    const inserted = await Question.insertMany(allQuestions);
-    console.log(`✅ Inserted ${inserted.length} JSON questions`);
-    console.log(`   - Multiple Choice: ${jsonQuestions.multipleChoice.length}`);
-    console.log(`   - True/False: ${jsonQuestions.trueFalse.length}`);
-    console.log(`   - Code Challenge: ${jsonQuestions.codeChallenge.length}`);
-    console.log(`   - Code Debugging: ${jsonQuestions.codeDebugging.length}`);
+    console.log('');
+    validator.printValidationSummary();
+    console.log('');
 
-    return inserted;
+    // Insert valid questions
+    if (validationResults.validQuestions.length > 0) {
+      console.log(`📦 Inserting ${validationResults.validQuestions.length} valid questions...`);
+      const insertResults = await processor.insertBatch(validationResults.validQuestions);
+
+      processor.printProcessingSummary(insertResults, 'JSON');
+
+      // Verify insertions
+      if (insertResults.insertedIds.length > 0) {
+        const verification = await processor.verifyInsertedQuestions(insertResults.insertedIds);
+        console.log(`\n🔍 Verification: ${verification.found}/${insertResults.insertedIds.length} questions found in database`);
+      }
+
+      // Comprehensive success reporting
+      const duration = ((Date.now() - startTime) / 1000).toFixed(2);
+      console.log('\n🎉 COMPREHENSIVE JSON question seeding completed successfully!');
+      console.log(`📈 Final count: ${insertResults.success} questions inserted`);
+      console.log(`⏱️  Total time: ${duration} seconds`);
+      console.log(`🚀 Performance: ${(insertResults.success / parseFloat(duration)).toFixed(1)} questions/second`);
+
+      // Enhanced validation breakdown
+      if (validationResults.summary) {
+        console.log(`\n📊 Validation Results:`);
+        console.log(`   ✅ Valid: ${validationResults.summary.valid}/${validationResults.summary.total} (${((validationResults.summary.valid / validationResults.summary.total) * 100).toFixed(1)}%)`);
+        console.log(`   ❌ Invalid: ${validationResults.summary.invalid}/${validationResults.summary.total}`);
+        console.log(`   ⚠️  With Warnings: ${validationResults.summary.warnings}`);
+      }
+
+      // Show detailed question type breakdown
+      const insertedByType = {};
+      allQuestions.forEach(q => {
+        insertedByType[q.type] = (insertedByType[q.type] || 0) + 1;
+      });
+      
+      console.log(`\n🎯 Question Type Breakdown:`);
+      Object.entries(insertedByType).forEach(([type, count]) => {
+        console.log(`   ${type}: ${count} questions`);
+      });
+
+      // Show invalid questions if any
+      if (validationResults.invalidQuestions.length > 0) {
+        console.log(`\n❌ ${validationResults.invalidQuestions.length} questions failed validation:`);
+        validationResults.invalidQuestions.forEach(({ question, result }) => {
+          console.log(`   - ${question.title}: ${result.errors.join(', ')}`);
+        });
+      }
+
+      // Return the inserted questions for the master script
+      return await Question.find({ language: 'json' }).select('_id title type');
+
+    } else {
+      console.log('❌ No valid questions to insert');
+
+      // Restore backup if available
+      if (backup) {
+        console.log('🔄 Restoring from backup...');
+        await processor.restoreFromBackup(backup);
+      }
+
+      return [];
+    }
+
   } catch (error) {
-    console.error('Error seeding JSON questions:', error);
+    console.error('💥 JSON seeding failed:', error.message);
     throw error;
   } finally {
     await mongoose.connection.close();
   }
 }
 
+// Allow running this script directly
 if (require.main === module) {
   seedJsonQuestions()
-    .then(() => {
-      console.log('JSON questions seeded successfully!');
+    .then((questions) => {
+      console.log(`\n🎉 SUCCESS! Seeded ${questions.length} comprehensive JSON questions with enhanced validation!`);
+      console.log(`🔥 Ready for production use with robust fill-in-blank validation!`);
       process.exit(0);
     })
     .catch(error => {
-      console.error('Failed to seed JSON questions:', error);
+      console.error('❌ Failed to seed JSON questions:', error);
       process.exit(1);
     });
 }

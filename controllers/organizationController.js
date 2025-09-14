@@ -1,4 +1,4 @@
-// /controllers/organizationController.js
+// /controllers/organizationController.js - FIXED
 const Organization = require('../models/Organization');
 const createError = require('http-errors');
 
@@ -20,10 +20,11 @@ const createOrganization = async (req, res, next) => {
     });
     await organization.save();
     res.status(201).json({
-      id: organization._id,
+      _id: organization._id,
       name: organization.name,
       inviteCode: organization.inviteCode,
       createdAt: organization.createdAt,
+      updatedAt: organization.updatedAt, // Add missing updatedAt
     });
   } catch (error) {
     next(error);
@@ -33,21 +34,23 @@ const createOrganization = async (req, res, next) => {
 // Get organization details (super org admins or org admins/instructors)
 const getOrganization = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // ✅ Extract 'id' from route parameter
     const user = req.user; // From JWT middleware
 
     // Validate access: super org admin or user in requested org
+    // ✅ FIXED: Use 'id' instead of '_id'
     if (!user.organizationId || (user.organizationId.toString() !== id && !user.isSuperOrgAdmin)) {
       throw createError(403, 'Unauthorized to access this organization');
     }
 
+    // ✅ FIXED: Use 'id' instead of '_id'
     const organization = await Organization.findById(id);
     if (!organization) {
       throw createError(404, 'Organization not found');
     }
 
     res.json({
-      id: organization._id,
+      _id: organization._id,
       name: organization.name,
       inviteCode: organization.inviteCode,
       isSuperOrg: organization.isSuperOrg,
@@ -79,11 +82,12 @@ const getAllOrganizations = async (req, res, next) => {
 // Update organization details (super org admins or org admins)
 const updateOrganization = async (req, res, next) => {
   try {
-    const { id } = req.params;
+    const { id } = req.params; // ✅ FIXED: Extract 'id' from route parameter
     const { name, inviteCode } = req.body;
     const user = req.user; // From JWT middleware
 
     // Validate access: super org admin or org admin
+    // ✅ FIXED: Use 'id' instead of '_id'
     if (!user.organizationId || (user.organizationId.toString() !== id && !user.isSuperOrgAdmin)) {
       throw createError(403, 'Unauthorized to update this organization');
     }
@@ -95,6 +99,7 @@ const updateOrganization = async (req, res, next) => {
 
     // Check inviteCode uniqueness if provided
     if (inviteCode) {
+      // ✅ FIXED: Use 'id' instead of '_id'
       const existingOrg = await Organization.findOne({ inviteCode, _id: { $ne: id } });
       if (existingOrg) {
         throw createError(409, 'Invite code already exists');
@@ -105,6 +110,7 @@ const updateOrganization = async (req, res, next) => {
     if (name) updateData.name = name;
     if (inviteCode) updateData.inviteCode = inviteCode;
 
+    // ✅ FIXED: Use 'id' instead of '_id'
     const organization = await Organization.findByIdAndUpdate(
       id,
       { $set: updateData },
@@ -116,7 +122,7 @@ const updateOrganization = async (req, res, next) => {
     }
 
     res.json({
-      id: organization._id,
+      _id: organization._id,
       name: organization.name,
       inviteCode: organization.inviteCode,
       updatedAt: organization.updatedAt,
@@ -130,9 +136,10 @@ const updateOrganization = async (req, res, next) => {
 const deleteOrganization = async (req, res, next) => {
   try {
     // Assumes validateSuperOrgAdmin middleware
-    const { id } = req.params;
+    const { id } = req.params; // ✅ FIXED: Extract 'id' from route parameter
 
     // Prevent deleting super org or Public Org
+    // ✅ FIXED: Use 'id' instead of '_id'
     const organization = await Organization.findById(id);
     if (!organization) {
       throw createError(404, 'Organization not found');
@@ -141,6 +148,7 @@ const deleteOrganization = async (req, res, next) => {
       throw createError(403, 'Cannot delete super org or Public Org');
     }
 
+    // ✅ FIXED: Use 'id' instead of '_id'
     await Organization.deleteOne({ _id: id });
     // Note: Cascade deletion of Users, Questions, Tests, etc., to be implemented later
 
@@ -165,7 +173,7 @@ const validateInviteCode = async (req, res, next) => {
     }
 
     res.json({
-      id: organization._id,
+      _id: organization._id,
       name: organization.name,
     });
   } catch (error) {

@@ -220,7 +220,7 @@ const validateOrgAdminOnly = async (req, res, next) => {
 const validateOrgAccess = async (req, res, next) => {
   try {
     const { user } = req;
-    const { id } = req.params; // Organization ID from URL
+    const { _id } = req.params; // Organization _id from URL
 
     if (!user.organizationId) {
       throw createError(403, 'No organization assigned');
@@ -234,7 +234,7 @@ const validateOrgAccess = async (req, res, next) => {
     }
 
     // Check if user has access to the specific organization
-    if (user.organizationId.toString() !== id) {
+    if (user.organizationId.toString() !== _id) {
       throw createError(403, 'Unauthorized to access this organization');
     }
 
@@ -252,7 +252,7 @@ const validateOrgAccess = async (req, res, next) => {
 const validateOrgAdmin = async (req, res, next) => {
   try {
     const { user } = req;
-    const { id } = req.params; // Organization _id from URL
+    const { _id } = req.params; // Organization _id from URL
 
     if (!user.organizationId) {
       throw createError(403, 'No organization assigned');
@@ -265,7 +265,7 @@ const validateOrgAdmin = async (req, res, next) => {
       return next();
     }
 
-    if (user.organizationId.toString() !== id) {
+    if (user.organizationId.toString() !== _id) {
       throw createError(403, 'Unauthorized to access this organization');
     }
 
