@@ -1,4 +1,4 @@
-// /models/Result.js - Simplified for frontend ease of use
+// /models/Result.js - Updated with manual scoring support
 const { Schema, model } = require('mongoose');
 
 const resultSchema = new Schema({
@@ -50,6 +50,7 @@ const resultSchema = new Schema({
     
     // Question content
     title: { type: String, required: true },
+    description: { type: String },
     type: { 
       type: String, 
       enum: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'], 
@@ -71,6 +72,12 @@ const resultSchema = new Schema({
     isCorrect: { type: Boolean, required: true },
     pointsEarned: { type: Number, required: true },
     pointsPossible: { type: Number, required: true },
+    
+    // ✅ ADDED: Manual scoring fields
+    manuallyGraded: { type: Boolean, default: false },
+    gradedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+    gradedAt: { type: Date },
+    feedback: { type: String, trim: true },
     
     // Timing and engagement
     timeSpent: { type: Number, default: 0 }, // Seconds
@@ -119,6 +126,14 @@ const resultSchema = new Schema({
     unansweredQuestions: { type: Number, default: 0 }
   },
   
+  // ✅ ADDED: Manual scoring tracking fields
+  lastModified: { type: Date },
+  modifiedBy: { type: Schema.Types.ObjectId, ref: 'User' },
+  scoreOverridden: { type: Boolean, default: false },
+  overrideReason: { type: String, trim: true },
+  instructorFeedback: { type: String, trim: true },
+  manualReviewRequired: { type: Boolean, default: false },
+  
   createdAt: {
     type: Date,
     default: Date.now,
@@ -137,10 +152,22 @@ resultSchema.index({ organizationId: 1 });
 resultSchema.index({ status: 1 });
 resultSchema.index({ 'score.percentage': 1 });
 resultSchema.index({ completedAt: 1 });
+// ✅ ADDED: Index for manual grading queries
+resultSchema.index({ manualReviewRequired: 1, status: 1 });
+resultSchema.index({ 'questions.type': 1, 'questions.manuallyGraded': 1 });
 
-// Auto-calculate percentage and stats
+// ✅ UPDATED: Auto-calculate percentage and stats with manual scoring support
 resultSchema.pre('save', function (next) {
   this.updatedAt = Date.now();
+  
+  // If scores were manually updated, recalculate totals
+  if (this.questions && this.questions.length > 0) {
+    // Recalculate earned points from all questions
+    this.score.earnedPoints = this.questions.reduce((sum, q) => sum + (q.pointsEarned || 0), 0);
+    
+    // Recalculate total possible points
+    this.score.totalPoints = this.questions.reduce((sum, q) => sum + (q.pointsPossible || 0), 0);
+  }
   
   // Calculate percentage
   if (this.score.totalPoints > 0) {
@@ -155,6 +182,11 @@ resultSchema.pre('save', function (next) {
   this.score.correctAnswers = this.questions.filter(q => q.isCorrect).length;
   this.score.incorrectAnswers = this.questions.filter(q => !q.isCorrect && q.studentAnswer !== null).length;
   this.score.unansweredQuestions = this.questions.filter(q => q.studentAnswer === null).length;
+  
+  // ✅ ADDED: Auto-detect if manual review is needed
+  this.manualReviewRequired = this.questions.some(q => 
+    ['essay', 'codeChallenge'].includes(q.type) && !q.manuallyGraded
+  );
   
   next();
 });
@@ -173,6 +205,69 @@ resultSchema.virtual('summary').get(function() {
 // Method to get question by number
 resultSchema.methods.getQuestion = function(questionNumber) {
   return this.questions.find(q => q.questionNumber === questionNumber);
+};
+
+// ✅ ADDED: Methods for manual scoring
+resultSchema.methods.updateQuestionScore = function(questionIndex, updates, graderId) {
+  if (questionIndex < 0 || questionIndex >= this.questions.length) {
+    throw new Error('Invalid question index');
+  }
+  
+  const question = this.questions[questionIndex];
+  const oldScore = question.pointsEarned;
+  
+  // Update question fields
+  if (updates.pointsEarned !== undefined) question.pointsEarned = updates.pointsEarned;
+  if (updates.isCorrect !== undefined) question.isCorrect = updates.isCorrect;
+  if (updates.feedback !== undefined) question.feedback = updates.feedback;
+  
+  // Mark as manually graded
+  question.manuallyGraded = true;
+  question.gradedBy = graderId;
+  question.gradedAt = new Date();
+  
+  // Update result metadata
+  this.lastModified = new Date();
+  this.modifiedBy = graderId;
+  
+  return {
+    oldScore,
+    newScore: question.pointsEarned,
+    question: question
+  };
+};
+
+resultSchema.methods.requiresManualGrading = function() {
+  return this.questions.some(q => 
+    ['essay', 'codeChallenge'].includes(q.type) && !q.manuallyGraded
+  );
+};
+
+resultSchema.methods.getUngradedQuestions = function() {
+  return this.questions.filter(q => 
+    ['essay', 'codeChallenge'].includes(q.type) && !q.manuallyGraded
+  );
+};
+
+// ✅ ADDED: Static method to find results needing manual grading
+resultSchema.statics.findPendingManualGrading = function(organizationId, testId = null) {
+  const query = {
+    status: 'completed',
+    organizationId: organizationId,
+    $or: [
+      { manualReviewRequired: true },
+      { 'questions.type': { $in: ['essay', 'codeChallenge'] }, 'questions.manuallyGraded': false }
+    ]
+  };
+  
+  if (testId) {
+    query.testId = testId;
+  }
+  
+  return this.find(query)
+    .populate('userId', 'firstName lastName email')
+    .populate('testId', 'title')
+    .sort({ completedAt: -1 });
 };
 
 module.exports = model('Result', resultSchema);

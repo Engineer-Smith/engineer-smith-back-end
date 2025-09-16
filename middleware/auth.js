@@ -19,7 +19,7 @@ const verifyToken = async (req, res, next) => {
         token = authHeader.substring(7);
       }
     }
-
+    
     if (!token) {
       throw createError(401, 'Authentication token required');
     }

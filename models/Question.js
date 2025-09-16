@@ -1,7 +1,7 @@
 const { Schema, model } = require('mongoose');
 const { VALID_TAGS } = require('../constants/tags'); // Import centralized tags
 
-// Valid language-category combinations - ✅ This is correct
+// Valid language-category combinations
 const VALID_COMBINATIONS = {
   'html': ['ui', 'syntax'],
   'css': ['ui', 'syntax'],
@@ -15,6 +15,57 @@ const VALID_COMBINATIONS = {
   'dart': ['logic', 'syntax'],
   'express': ['logic', 'syntax'],
   'json': ['syntax']
+};
+
+// Valid language+category+type combinations
+const VALID_TYPE_COMBINATIONS = {
+  'html': { 
+    'ui': ['multipleChoice', 'trueFalse', 'fillInTheBlank'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'css': { 
+    'ui': ['multipleChoice', 'trueFalse', 'fillInTheBlank'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'react': { 
+    'ui': ['multipleChoice', 'trueFalse', 'fillInTheBlank'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'flutter': { 
+    'ui': ['multipleChoice', 'trueFalse', 'fillInTheBlank'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'reactNative': { 
+    'ui': ['multipleChoice', 'trueFalse', 'fillInTheBlank'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'javascript': { 
+    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'typescript': { 
+    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'python': { 
+    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'sql': { 
+    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'dart': { 
+    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'express': { 
+    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  },
+  'json': { 
+    'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
+  }
 };
 
 const questionSchema = new Schema({
@@ -32,6 +83,61 @@ const questionSchema = new Schema({
     type: String,
     enum: ['multipleChoice', 'trueFalse', 'codeChallenge', 'fillInTheBlank', 'codeDebugging'],
     required: true,
+    validate: {
+      validator: function (questionType) {
+        // Skip validation if language or category is missing
+        if (!this.language || !this.category) {
+          return true;
+        }
+        
+        // Handle different validation contexts (create vs update)
+        let language = this.language;
+        let category = this.category;
+        
+        // For update operations, 'this' might not have all fields
+        if (!language || !category) {
+          if (this.getUpdate && typeof this.getUpdate === 'function') {
+            const update = this.getUpdate();
+            language = language || update.language || update.$set?.language;
+            category = category || update.category || update.$set?.category;
+          }
+          
+          if (this.get && typeof this.get === 'function') {
+            language = language || this.get('language');
+            category = category || this.get('category');
+          }
+          
+          // If we still can't determine language/category, skip validation
+          if (!language || !category) {
+            return true;
+          }
+        }
+        
+        const validTypes = VALID_TYPE_COMBINATIONS[language]?.[category] || [];
+        return validTypes.includes(questionType);
+      },
+      message: function(props) {
+        let language = this.language;
+        let category = this.category;
+        
+        // Handle update operations for error message
+        if (!language || !category) {
+          if (this.getUpdate && typeof this.getUpdate === 'function') {
+            const update = this.getUpdate();
+            language = language || update.language || update.$set?.language;
+            category = category || update.category || update.$set?.category;
+          }
+          
+          if (this.get && typeof this.get === 'function') {
+            language = language || this.get('language');
+            category = category || this.get('category');
+          }
+        }
+        
+        const validTypes = VALID_TYPE_COMBINATIONS[language]?.[category] || [];
+        return `'${props.value}' is not valid for ${language} ${category} questions. Valid types: ${validTypes.join(', ')}`;
+      }
+    }
   },
   language: {
     type: String,
@@ -127,7 +233,7 @@ const questionSchema = new Schema({
     entryFunction: {
       type: String,
       required: function () {
-        // NEW: SQL doesn't need entryFunction
+        // SQL doesn't need entryFunction
         return (this.type === 'codeChallenge' || this.type === 'codeDebugging') &&
           this.category === 'logic' &&
           this.language !== 'sql';
@@ -155,7 +261,7 @@ const questionSchema = new Schema({
   codeTemplate: {
     type: String,
     required: function () {
-      return this.type === 'fillInTheBlank' || this.type === 'codeChallenge';
+      return this.type === 'fillInTheBlank';
     }
   },
 
@@ -182,8 +288,7 @@ const questionSchema = new Schema({
     }
   },
 
-  // ✅ FIXED: Solution code only for codeDebugging questions
-  // UI questions now use fillInTheBlank, so no solutionCode needed
+  // Solution code only for codeDebugging questions
   solutionCode: {
     type: String,
     required: function () {
@@ -208,7 +313,7 @@ const questionSchema = new Schema({
   },
   tags: {
     type: [String],
-    enum: VALID_TAGS, // ✅ Now uses centralized tags instead of inline array
+    enum: VALID_TAGS,
     default: [],
   },
   usageStats: {
@@ -239,6 +344,7 @@ questionSchema.index({ status: 1 });
 questionSchema.index({ tags: 1 });
 questionSchema.index({ language: 1, category: 1 });
 questionSchema.index({ type: 1, category: 1 });
+questionSchema.index({ language: 1, category: 1, type: 1 }); // New composite index
 
 // Pre-save hook
 questionSchema.pre('save', function (next) {
@@ -279,15 +385,33 @@ questionSchema.virtual('validCategories').get(function () {
   return VALID_COMBINATIONS[this.language] || [];
 });
 
+// Virtual for getting valid question types based on language and category
+questionSchema.virtual('validQuestionTypes').get(function () {
+  if (!this.language || !this.category) return [];
+  return VALID_TYPE_COMBINATIONS[this.language]?.[this.category] || [];
+});
+
 // Static method to get valid combinations
 questionSchema.statics.getValidCombinations = function () {
   return VALID_COMBINATIONS;
+};
+
+// Static method to get valid type combinations
+questionSchema.statics.getValidTypeCombinations = function () {
+  return VALID_TYPE_COMBINATIONS;
 };
 
 // Instance method to validate language-category combination
 questionSchema.methods.isValidCombination = function () {
   const validCategories = VALID_COMBINATIONS[this.language] || [];
   return !this.category || validCategories.includes(this.category);
+};
+
+// Instance method to validate language-category-type combination
+questionSchema.methods.isValidTypeForLanguageCategory = function () {
+  if (!this.language || !this.category) return true;
+  const validTypes = VALID_TYPE_COMBINATIONS[this.language]?.[this.category] || [];
+  return validTypes.includes(this.type);
 };
 
 module.exports = model('Question', questionSchema);

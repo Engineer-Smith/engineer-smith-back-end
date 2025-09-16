@@ -331,7 +331,6 @@ const forceCompleteSession = async (sessionId, user) => {
     const { submitTestSession } = require('./gradingService');
     const result = await submitTestSession(sessionId, { forceSubmit: true }, { userId: session.userId });
     
-    console.log(`Admin ${user.userId} force-completed session ${sessionId}`);
     
     return {
       success: true,

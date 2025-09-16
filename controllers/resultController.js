@@ -1,4 +1,4 @@
-// /controllers/resultController.js - REFACTORED to use service layer
+// /controllers/resultController.js - FIXED parameter passing
 const resultService = require('../services/result/resultService');
 const { validateFilterInputs, validateAnalyticsAccess, validateQuestionAnalyticsAccess } = require('../services/result/resultValidation');
 const createError = require('http-errors');
@@ -9,10 +9,16 @@ const getResult = async (req, res, next) => {
     const { user } = req;
     const { resultId } = req.params;
 
+    // Add debugging
+    console.log('=== CONTROLLER DEBUGGING ===');
+    console.log('req.user:', JSON.stringify(user, null, 2));
+    console.log('resultId:', resultId);
+
     const result = await resultService.getResult(resultId, user);
     
     res.json(result);
   } catch (error) {
+    console.log('Error in getResult controller:', error.message);
     next(error);
   }
 };
@@ -113,10 +119,12 @@ const getSectionAnalytics = async (req, res, next) => {
   }
 };
 
-// Get question performance analytics
+// Get question performance analytics - FIXED
 const getQuestionAnalytics = async (req, res, next) => {
   try {
     const { user } = req;
+    
+    // FIXED: Properly extract filters object
     const filters = {
       testId: req.query.testId,
       questionId: req.query.questionId,
@@ -131,10 +139,12 @@ const getQuestionAnalytics = async (req, res, next) => {
     validateQuestionAnalyticsAccess(user, filters.orgId);
     validateFilterInputs(filters);
 
+    // FIXED: Pass filters object and user object correctly
     const analytics = await resultService.getQuestionAnalytics(filters, user);
     
     res.json(analytics);
   } catch (error) {
+    console.error('getQuestionAnalytics: Error:', error);
     next(error);
   }
 };

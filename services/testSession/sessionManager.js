@@ -21,8 +21,6 @@ const markSessionConnected = async (sessionId) => {
   const session = await getSessionInternal(sessionId);
   session.markConnected();
   await session.save();
-
-  console.log(`Session ${sessionId} marked as connected`);
   return session;
 };
 
@@ -31,8 +29,6 @@ const markSessionDisconnected = async (sessionId) => {
   const session = await getSessionInternal(sessionId);
   session.markDisconnected();
   await session.save();
-
-  console.log(`Session ${sessionId} marked as disconnected`);
   return session;
 };
 
@@ -50,7 +46,6 @@ const updateConnectionState = async (sessionId, isConnected, graceTimerId = null
   }
 
   await session.save();
-  console.log(`Session ${sessionId} connection state updated: ${isConnected ? 'connected' : 'disconnected'}`);
   return session;
 };
 
@@ -58,7 +53,7 @@ const updateConnectionState = async (sessionId, isConnected, graceTimerId = null
 const getSessionStatus = async (sessionId) => {
   const session = await getSessionInternal(sessionId);
 
-  return {
+  const status = {
     sessionId: session._id,
     status: session.status,
     isConnected: session.isConnected,
@@ -69,6 +64,8 @@ const getSessionStatus = async (sessionId) => {
     isLastQuestion: session.isLastQuestionInSection(),
     isLastSection: session.isLastSection()
   };
+
+  return status;
 };
 
 /**
@@ -77,9 +74,14 @@ const getSessionStatus = async (sessionId) => {
 
 // Check if user can rejoin an existing session
 const checkRejoinSession = async (user) => {
+  // First, let's see ALL sessions for this user regardless of status
+  const allUserSessions = await TestSession.find({
+    userId: user.userId
+  }).sort({ startedAt: -1 }).limit(5);
+
   const existingSession = await TestSession.findOne({
     userId: user.userId,
-    status: { $in: ['inProgress', 'paused'] }  // ✅ Include both statuses
+    status: { $in: ['inProgress', 'paused'] }
   });
 
   if (!existingSession) {
@@ -90,14 +92,25 @@ const checkRejoinSession = async (user) => {
     };
   }
 
+  // Check if session is actually completed despite paused status
+  if (existingSession.completedAt) {
+    return {
+      success: true,
+      canRejoin: false,
+      message: 'Previous session was completed'
+    };
+  }
+
   const timeRemaining = existingSession.calculateTimeRemaining();
+
+  // Check the status again after calculation
+  const sessionAfterCalc = await TestSession.findById(existingSession._id);
 
   if (timeRemaining <= 0) {
     // Session expired - auto-submit it
-    console.log(`Found expired session ${existingSession._id}, auto-submitting...`);
     try {
       const { submitTestSession } = require('./gradingService');
-      await submitTestSession(existingSession._id, { forceSubmit: true }, user);
+      const submitResult = await submitTestSession(existingSession._id, { forceSubmit: true }, user);
 
       return {
         success: true,
@@ -105,7 +118,7 @@ const checkRejoinSession = async (user) => {
         message: 'Previous session expired and was auto-submitted'
       };
     } catch (error) {
-      console.error('Error auto-submitting expired session:', error);
+      console.error(`Error auto-submitting expired session ${existingSession._id}:`, error);
       // Mark as abandoned instead
       existingSession.status = 'abandoned';
       existingSession.completedAt = new Date();
@@ -140,7 +153,6 @@ const checkRejoinSession = async (user) => {
 };
 
 // Create new session (simplified for server-driven approach)
-// Create new session (simplified for server-driven approach)
 const createSession = async (requestData, user) => {
   const { testId, forceNew = false } = requestData;
 
@@ -172,18 +184,15 @@ const createSession = async (requestData, user) => {
   if (forceNew) {
     const existingSession = await TestSession.findOne({
       userId: user.userId,
-      status: { $in: ['inProgress', 'paused'] } // Include both statuses
+      status: { $in: ['inProgress', 'paused'] }
     });
 
     if (existingSession) {
-      console.log(`Force creating new session, handling existing session ${existingSession._id}`);
-
       try {
         const { submitTestSession } = require('./gradingService');
-        await submitTestSession(existingSession._id, { forceSubmit: true }, user);
-        console.log(`Successfully force-submitted existing session ${existingSession._id}`);
+        const submitResult = await submitTestSession(existingSession._id, { forceSubmit: true }, user);
       } catch (error) {
-        console.error('Error force-submitting existing session:', error);
+        console.error(`Error force-submitting existing session ${existingSession._id}:`, error);
         // Mark as abandoned if submission fails
         existingSession.status = 'abandoned';
         existingSession.completedAt = new Date();
@@ -205,22 +214,30 @@ const createSession = async (requestData, user) => {
     throw createError(403, error.message);
   }
 
-  // Check attempt limit - only count completed/abandoned, not in-progress
+  // Check attempt limit using Test model methods that include overrides
+  const canAttempt = await test.canStudentAttempt(user.userId);
+  const remainingAttempts = await test.getRemainingAttempts(user.userId);
+  const totalAllowed = await test.getAllowedAttemptsForStudent(user.userId);
+
+  if (!canAttempt) {
+    throw createError(403, 'Maximum attempts reached');
+  }
+
+  // Get the previous attempts count for attempt number calculation
   const previousAttempts = await TestSession.countDocuments({
-    'testSnapshot.originalTestId': testId,
+    $or: [
+      { 'testSnapshot.originalTestId': testId },
+      { testId: testId }
+    ],
     userId: user.userId,
     status: { $in: ['completed', 'abandoned'] }
   });
-
-  if (previousAttempts >= test.settings.attemptsAllowed) {
-    throw createError(403, 'Maximum attempts reached');
-  }
 
   // Create test snapshot with randomization
   const testSnapshot = await createTestSnapshot(test, user.userId);
 
   // Create session with minimal fields
-  const session = new TestSession({
+  const sessionData = {
     testId: test._id,
     userId: user.userId,
     organizationId: test.organizationId || user.organizationId,
@@ -233,12 +250,13 @@ const createSession = async (requestData, user) => {
     completedSections: [],
     currentQuestionIndex: 0,
     answeredQuestions: []
-  });
+  };
 
+  const session = new TestSession(sessionData);
   await session.save();
 
   // Return session info for client
-  return {
+  const response = {
     success: true,
     sessionId: session._id,
     isResuming: false,
@@ -268,6 +286,36 @@ const createSession = async (requestData, user) => {
       currentSectionName: testSnapshot.sections[0].name
     } : null
   };
+
+  return response;
+};
+
+// Force create new session (abandon existing if present)
+const forceCreateSession = async (testId, userId, organizationId) => {
+  // Find and handle existing session
+  const existingSession = await TestSession.findOne({
+    userId: userId,
+    status: 'inProgress'
+  });
+
+  if (existingSession) {
+    try {
+      const { submitTestSession } = require('./gradingService');
+      const result = await submitTestSession(existingSession._id, { forceSubmit: true }, { userId });
+    } catch (error) {
+      console.error(`Error force-submitting existing session ${existingSession._id}:`, error);
+      // Mark as abandoned if submission fails
+      existingSession.status = 'abandoned';
+      existingSession.completedAt = new Date();
+      await existingSession.save();
+    }
+  }
+
+  // Create new session using the updated createSession method
+  const user = { userId, organizationId };
+  const requestData = { testId, forceNew: false };
+
+  return await createSession(requestData, user);
 };
 
 // Rejoin existing session (simplified for server-driven approach)
@@ -288,21 +336,19 @@ const rejoinSession = async (sessionId, userId) => {
   }
 
   const timeRemaining = session.calculateTimeRemaining();
+
   if (timeRemaining <= 0) {
     throw createError(400, 'Session has expired and cannot be rejoined');
   }
 
   if (session.status === 'paused') {
     session.status = 'inProgress';
-    console.log(`Resuming paused session ${sessionId}`);
   }
 
   // Update connection state
   session.markConnected();
   session.updateServerState('session_rejoined');
   await session.save();
-
-  console.log(`User ${userId} rejoined session ${sessionId}`);
 
   // Return minimal data for controller
   return {
@@ -319,35 +365,6 @@ const rejoinSession = async (sessionId, userId) => {
   };
 };
 
-// Force create new session (abandon existing if present)
-const forceCreateSession = async (testId, userId, organizationId) => {
-  // Find and handle existing session
-  const existingSession = await TestSession.findOne({
-    userId: userId,
-    status: 'inProgress'
-  });
-
-  if (existingSession) {
-    console.log(`Force creating new session, handling existing session ${existingSession._id}`);
-
-    try {
-      const { submitTestSession } = require('./gradingService');
-      await submitTestSession(existingSession._id, { forceSubmit: true }, { userId });
-      console.log(`Successfully force-submitted existing session ${existingSession._id}`);
-    } catch (error) {
-      console.error('Error force-submitting existing session:', error);
-      // Mark as abandoned if submission fails
-      existingSession.status = 'abandoned';
-      existingSession.completedAt = new Date();
-      await existingSession.save();
-    }
-  }
-
-  // Create new session
-  return await createSession(testId, userId, organizationId);
-};
-
-// Abandon a test session
 // Abandon a test session
 const abandonSession = async (sessionId, userId) => {
   const session = await TestSession.findById(sessionId);
@@ -387,17 +404,15 @@ const abandonSession = async (sessionId, userId) => {
       earnedPoints: 0,
       percentage: 0,
       passed: false,
-      passingThreshold: 70, // Default threshold
-      totalQuestions: session.testSnapshot.totalQuestions || 0, // ADDED: Required field
-      correctAnswers: 0,     // ADDED: Required field
-      incorrectAnswers: 0,   // ADDED: Required field
-      unansweredQuestions: session.testSnapshot.totalQuestions || 0 // ADDED: All questions unanswered
+      passingThreshold: 70,
+      totalQuestions: session.testSnapshot.totalQuestions || 0,
+      correctAnswers: 0,
+      incorrectAnswers: 0,
+      unansweredQuestions: session.testSnapshot.totalQuestions || 0
     }
   });
 
   await result.save();
-
-  console.log(`Session ${sessionId} abandoned by user ${userId}`);
 
   return {
     success: true,
@@ -503,24 +518,73 @@ const listSessions = async (filters, user) => {
   }
 
   const sessions = await TestSession.find(query)
+    .populate({
+      path: 'userId',
+      select: 'loginId firstName lastName email',
+      model: 'User'
+    })
+    .populate({
+      path: 'organizationId',
+      select: 'name',
+      model: 'Organization'
+    })
     .skip(parseInt(skip))
     .limit(parseInt(limit))
-    .select('testSnapshot.originalTestId testSnapshot.title userId organizationId attemptNumber status startedAt completedAt finalScore isConnected')
+    .select('testSnapshot userId organizationId attemptNumber status startedAt completedAt finalScore isConnected lastConnectedAt currentQuestionIndex answeredQuestions completedSections currentSectionIndex')
     .sort({ startedAt: -1 });
 
-  return sessions.map(session => ({
-    _id: session._id,
-    testId: session.testSnapshot.originalTestId,
-    testTitle: session.testSnapshot.title,
-    userId: session.userId,
-    organizationId: session.organizationId,
-    attemptNumber: session.attemptNumber,
-    status: session.status,
-    startedAt: session.startedAt,
-    completedAt: session.completedAt,
-    finalScore: session.finalScore,
-    isConnected: session.isConnected
-  }));
+  return sessions.map(session => {
+    // Handle both populated and non-populated cases
+    let userName, userEmail, userIdValue, organizationName, organizationIdValue;
+
+    if (typeof session.userId === 'object' && session.userId !== null) {
+      // User is populated
+      userIdValue = session.userId._id;
+      userName = session.userId.fullName ||
+        `${session.userId.firstName || ''} ${session.userId.lastName || ''}`.trim() ||
+        session.userId.loginId ||
+        `User ${session.userId._id?.toString().slice(-6) || 'Unknown'}`;
+      userEmail = session.userId.email || `${session.userId.loginId || 'unknown'}@example.com`;
+    } else {
+      // User is not populated, just an ID
+      userIdValue = session.userId;
+      userName = `User ${session.userId?.toString().slice(-6) || 'Unknown'}`;
+      userEmail = `user-${session.userId?.toString().slice(-6) || 'unknown'}@example.com`;
+    }
+
+    if (typeof session.organizationId === 'object' && session.organizationId !== null) {
+      // Organization is populated
+      organizationIdValue = session.organizationId._id;
+      organizationName = session.organizationId.name || 'Unknown Organization';
+    } else {
+      // Organization is not populated, just an ID
+      organizationIdValue = session.organizationId;
+      organizationName = session.organizationId ? `Org ${session.organizationId.toString().slice(-6)}` : 'Independent';
+    }
+
+    return {
+      _id: session._id,
+      testId: session.testSnapshot.originalTestId,
+      testTitle: session.testSnapshot.title,
+      userId: userIdValue,
+      userName,
+      userEmail,
+      organizationId: organizationIdValue,
+      organizationName,
+      attemptNumber: session.attemptNumber,
+      status: session.status,
+      startedAt: session.startedAt,
+      completedAt: session.completedAt,
+      finalScore: session.finalScore,
+      isConnected: session.isConnected,
+      lastConnectedAt: session.lastConnectedAt,
+      currentQuestionIndex: session.currentQuestionIndex,
+      answeredQuestions: session.answeredQuestions,
+      completedSections: session.completedSections,
+      currentSectionIndex: session.currentSectionIndex,
+      testSnapshot: session.testSnapshot
+    };
+  });
 };
 
 // Get time sync data (for manual sync endpoint)
@@ -571,19 +635,17 @@ const checkAndHandleExpiredSessions = async () => {
     const inProgressSessions = await TestSession.find({
       status: { $in: ['inProgress', 'paused'] }
     });
+
     let expiredCount = 0;
 
     for (const session of inProgressSessions) {
       const timeRemaining = session.calculateTimeRemaining();
 
       if (timeRemaining <= 0) {
-        console.log(`Found expired session ${session._id}, auto-submitting...`);
-
         try {
           const { submitTestSession } = require('./gradingService');
-          await submitTestSession(session._id, { forceSubmit: true }, { userId: session.userId });
+          const result = await submitTestSession(session._id, { forceSubmit: true }, { userId: session.userId });
           expiredCount++;
-          console.log(`Successfully auto-submitted expired session ${session._id}`);
         } catch (error) {
           console.error(`Error auto-submitting expired session ${session._id}:`, error);
 
@@ -593,10 +655,6 @@ const checkAndHandleExpiredSessions = async () => {
           await session.save();
         }
       }
-    }
-
-    if (expiredCount > 0) {
-      console.log(`Auto-handled ${expiredCount} expired sessions`);
     }
 
     return {

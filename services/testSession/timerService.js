@@ -12,7 +12,6 @@ class TimerService {
     // Grace period timers: sessionId -> timer
     this.graceTimers = new Map();
     
-    console.log('TimerService initialized');
   }
 
   /**
@@ -24,21 +23,18 @@ class TimerService {
    * @param {function} onSync - Callback for periodic sync (optional)
    */
   async startSectionTimer(sessionId, timeRemainingMs, sectionIndex, onExpiration, onSync = null) {
-    console.log(`Starting section timer for ${sessionId}: ${timeRemainingMs}ms remaining, section ${sectionIndex}`);
     
     // Clear any existing timer
     this.clearTimer(sessionId);
     
     if (timeRemainingMs <= 0) {
       // Already expired - call expiration immediately
-      console.log(`Timer already expired for ${sessionId}, calling expiration handler`);
       setImmediate(() => onExpiration(sessionId));
       return;
     }
     
     // Set up the main expiration timer
     const timer = setTimeout(() => {
-      console.log(`Section timer expired for ${sessionId}`);
       this.clearTimer(sessionId);
       onExpiration(sessionId);
     }, timeRemainingMs);
@@ -56,8 +52,6 @@ class TimerService {
     if (onSync) {
       this.startPeriodicSync(sessionId, onSync);
     }
-    
-    console.log(`Section timer started for ${sessionId}`);
   }
 
   /**
@@ -68,7 +62,6 @@ class TimerService {
   pauseTimer(sessionId) {
     const timerInfo = this.activeTimers.get(sessionId);
     if (!timerInfo || timerInfo.isPaused) {
-      console.log(`No active timer to pause for ${sessionId}`);
       return 0;
     }
     
@@ -90,8 +83,6 @@ class TimerService {
     
     // Stop periodic sync
     this.stopPeriodicSync(sessionId);
-    
-    console.log(`Timer paused for ${sessionId}: ${Math.floor(timeRemaining / 1000)}s remaining`);
     return timeRemaining;
   }
 
@@ -105,7 +96,6 @@ class TimerService {
   resumeTimer(sessionId, onExpiration, onSync = null) {
     const timerInfo = this.activeTimers.get(sessionId);
     if (!timerInfo || !timerInfo.isPaused) {
-      console.log(`No paused timer to resume for ${sessionId}`);
       return false;
     }
     
@@ -113,7 +103,6 @@ class TimerService {
     
     if (timeRemaining <= 0) {
       // Timer expired while paused
-      console.log(`Timer expired while paused for ${sessionId}, calling expiration handler`);
       this.clearTimer(sessionId);
       setImmediate(() => onExpiration(sessionId));
       return true;
@@ -121,7 +110,6 @@ class TimerService {
     
     // Restart timer with remaining time
     const timer = setTimeout(() => {
-      console.log(`Section timer expired for ${sessionId} (after resume)`);
       this.clearTimer(sessionId);
       onExpiration(sessionId);
     }, timeRemaining);
@@ -140,8 +128,6 @@ class TimerService {
     if (onSync) {
       this.startPeriodicSync(sessionId, onSync);
     }
-    
-    console.log(`Timer resumed for ${sessionId}: ${Math.floor(timeRemaining / 1000)}s remaining`);
     return true;
   }
 
@@ -195,7 +181,6 @@ class TimerService {
     }, 30000); // 30 seconds
     
     this.syncIntervals.set(sessionId, syncInterval);
-    console.log(`Started periodic sync for ${sessionId}`);
   }
 
   /**
@@ -207,7 +192,6 @@ class TimerService {
     if (syncInterval) {
       clearInterval(syncInterval);
       this.syncIntervals.delete(sessionId);
-      console.log(`Stopped periodic sync for ${sessionId}`);
     }
   }
 
@@ -218,13 +202,11 @@ class TimerService {
    * @param {number} gracePeriodMs - Grace period in ms (default 5 minutes)
    */
   startGracePeriod(sessionId, onGraceExpired, gracePeriodMs = 5 * 60 * 1000) {
-    console.log(`Starting grace period for ${sessionId}: ${gracePeriodMs / 1000}s`);
     
     // Clear any existing grace timer
     this.clearGracePeriod(sessionId);
     
     const graceTimer = setTimeout(() => {
-      console.log(`Grace period expired for ${sessionId}`);
       this.clearGracePeriod(sessionId);
       onGraceExpired(sessionId);
     }, gracePeriodMs);
@@ -241,7 +223,6 @@ class TimerService {
     if (graceTimer) {
       clearTimeout(graceTimer);
       this.graceTimers.delete(sessionId);
-      console.log(`Cleared grace period for ${sessionId}`);
     }
   }
 
@@ -262,8 +243,6 @@ class TimerService {
     
     // Clear grace timer
     this.clearGracePeriod(sessionId);
-    
-    console.log(`Cleared all timers for ${sessionId}`);
   }
 
   /**
@@ -298,7 +277,6 @@ class TimerService {
    * Cleanup all timers (for server shutdown)
    */
   cleanup() {
-    console.log('Cleaning up TimerService...');
     
     // Clear all active timers
     for (const [sessionId, timerInfo] of this.activeTimers) {
@@ -319,8 +297,6 @@ class TimerService {
       clearTimeout(timer);
     }
     this.graceTimers.clear();
-    
-    console.log('TimerService cleanup complete');
   }
 
   /**
@@ -337,7 +313,6 @@ class TimerService {
    * @param {function} onExpiration - Expiration callback
    */
   forceExpire(sessionId, onExpiration) {
-    console.log(`Force expiring timer for ${sessionId}`);
     this.clearTimer(sessionId);
     setImmediate(() => onExpiration(sessionId));
   }

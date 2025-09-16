@@ -41,8 +41,6 @@ const initializeStudentData = (questionType) => {
 const createQuestionSnapshot = (questionRef, orderIndex) => {
   const question = questionRef.questionId;
 
-  console.log(`Creating snapshot for question ${question._id}: type=${question.type}, category=${question.category}`);
-
   const questionData = {
     title: question.title,
     description: question.description,
@@ -61,13 +59,11 @@ const createQuestionSnapshot = (questionRef, orderIndex) => {
   if (question.type === 'multipleChoice' || question.type === 'trueFalse') {
     questionData.options = question.options || [];
     questionData.correctAnswer = question.correctAnswer;
-    console.log(`MC/TF Question ${question._id}: options=${question.options?.length}, correctAnswer=${question.correctAnswer}`);
   }
 
   if (question.type === 'fillInTheBlank') {
     questionData.codeTemplate = question.codeTemplate || '';
     questionData.blanks = question.blanks || [];
-    console.log(`FIB Question ${question._id}: blanks=${question.blanks?.length}, template length=${question.codeTemplate?.length || 0}`);
   }
 
   if (question.type === 'codeChallenge') {
@@ -84,13 +80,6 @@ const createQuestionSnapshot = (questionRef, orderIndex) => {
       };
       questionData.testCases = question.testCases || [];
 
-      console.log(`Logic Code Challenge ${question._id}:`, {
-        runtime: questionData.codeConfig.runtime,
-        entryFunction: questionData.codeConfig.entryFunction,
-        testCases: questionData.testCases.length,
-        templateLength: questionData.codeTemplate.length
-      });
-
       // Validate critical fields are present
       if (!questionData.codeConfig.entryFunction) {
         console.error(`ERROR: Logic code challenge ${question._id} missing entryFunction!`);
@@ -106,8 +95,6 @@ const createQuestionSnapshot = (questionRef, orderIndex) => {
       // UI/Syntax questions
       questionData.solutionCode = question.solutionCode || '';
       questionData.expectedOutput = question.expectedOutput || '';
-
-      console.log(`UI/Syntax Code Challenge ${question._id}: solution length=${question.solutionCode?.length || 0}`);
     }
   }
 
@@ -124,14 +111,6 @@ const createQuestionSnapshot = (questionRef, orderIndex) => {
         allowPreview: question.codeConfig?.allowPreview !== false
       };
       questionData.testCases = question.testCases || [];
-
-      console.log(`Logic Code Debugging ${question._id}:`, {
-        runtime: questionData.codeConfig.runtime,
-        entryFunction: questionData.codeConfig.entryFunction,
-        testCases: questionData.testCases.length,
-        buggyCodeLength: questionData.buggyCode.length,
-        solutionCodeLength: questionData.solutionCode.length
-      });
 
       // Validate critical fields are present
       if (!questionData.codeConfig.entryFunction) {
@@ -155,20 +134,11 @@ const createQuestionSnapshot = (questionRef, orderIndex) => {
     ...initializeStudentData(question.type)
   };
 
-  console.log(`Question snapshot created for ${question._id}:`, {
-    type: snapshot.questionData.type,
-    category: snapshot.questionData.category,
-    hasCodeConfig: !!snapshot.questionData.codeConfig,
-    hasTestCases: !!snapshot.questionData.testCases,
-    entryFunction: snapshot.questionData.codeConfig?.entryFunction
-  });
-
   return snapshot;
 };
 
 // SIMPLIFIED: Create complete test snapshot with randomization
 const createTestSnapshot = async (test, userId) => {
-  console.log(`Creating test snapshot for test ${test._id}, user ${userId}`);
 
   // Create randomization seed
   const randomSeed = `${userId}_${test._id}_${Date.now()}_${Math.random()}`;
@@ -189,11 +159,9 @@ const createTestSnapshot = async (test, userId) => {
   };
 
   if (test.settings.useSections) {
-    console.log(`Processing sectioned test with ${test.sections.length} sections`);
 
     // Process sectioned test
     snapshot.sections = test.sections.map((section, sectionIndex) => {
-      console.log(`Processing section ${sectionIndex}: ${section.name} with ${section.questions.length} questions`);
 
       let questions = section.questions.map((qRef, qIndex) =>
         createQuestionSnapshot(qRef, qIndex)
@@ -201,7 +169,6 @@ const createTestSnapshot = async (test, userId) => {
 
       // Apply randomization if enabled
       if (test.settings.shuffleQuestions) {
-        console.log(`Shuffling questions in section ${sectionIndex}`);
         questions = shuffleArray(questions, rng);
         // Update final order after shuffle
         questions.forEach((q, index) => {
@@ -223,7 +190,6 @@ const createTestSnapshot = async (test, userId) => {
     snapshot.questions = undefined; // Ensure non-sectioned structure is not set
 
   } else {
-    console.log(`Processing non-sectioned test with ${test.questions.length} questions`);
 
     // Process non-sectioned test
     let questions = test.questions.map((qRef, qIndex) =>
@@ -232,7 +198,6 @@ const createTestSnapshot = async (test, userId) => {
 
     // Apply randomization if enabled
     if (test.settings.shuffleQuestions) {
-      console.log('Shuffling questions in non-sectioned test');
       questions = shuffleArray(questions, rng);
       // Update final order after shuffle
       questions.forEach((q, index) => {
@@ -246,15 +211,6 @@ const createTestSnapshot = async (test, userId) => {
     snapshot.totalPoints = questions.reduce((sum, q) => sum + q.points, 0);
   }
 
-  console.log(`Test snapshot created:`, {
-    testId: snapshot.originalTestId,
-    totalQuestions: snapshot.totalQuestions,
-    totalPoints: snapshot.totalPoints,
-    useSections: test.settings.useSections,
-    wasShuffled: snapshot.wasShuffled,
-    sectionCount: snapshot.sections?.length || 0
-  });
-
   // Validation summary for debugging
   const allQuestions = snapshot.questions ||
     (snapshot.sections ? snapshot.sections.flatMap(s => s.questions) : []);
@@ -264,13 +220,6 @@ const createTestSnapshot = async (test, userId) => {
     q.questionData.category === 'logic'
   );
 
-  console.log(`Snapshot validation summary:`, {
-    totalQuestions: allQuestions.length,
-    logicCodeQuestions: logicCodeQuestions.length,
-    missingEntryFunction: logicCodeQuestions.filter(q => !q.questionData.codeConfig?.entryFunction).length,
-    missingRuntime: logicCodeQuestions.filter(q => !q.questionData.codeConfig?.runtime).length,
-    missingTestCases: logicCodeQuestions.filter(q => !q.questionData.testCases || q.questionData.testCases.length === 0).length
-  });
 
   return snapshot;
 };
@@ -319,6 +268,3 @@ module.exports = {
   createSeededRandom,
   shuffleArray
 };
-
-// REMOVED: createSessionInitializationData, initializeSectionTiming, initializeCurrentSectionTiming
-// These created the complex timing data we no longer need

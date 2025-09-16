@@ -5,13 +5,6 @@ const path = require('path');
 const crypto = require('crypto');
 
 const runNodeTests = async ({ code, entryFunction, testCases, timeoutMs, language }) => {
-  console.log('NodeRunner: Starting execution with:', {
-    entryFunction,
-    testCaseCount: testCases.length,
-    timeoutMs,
-    language,
-    codeLength: code.length
-  });
 
   let executionError = null;
   let compilationError = null;
@@ -27,7 +20,6 @@ const runNodeTests = async ({ code, entryFunction, testCases, timeoutMs, languag
     // Handle TypeScript compilation if needed
     let processedCode = code;
     if (language === 'typescript') {
-      console.log('NodeRunner: Compiling TypeScript...');
       processedCode = await compileTypeScript(code);
     }
 
@@ -36,8 +28,6 @@ const runNodeTests = async ({ code, entryFunction, testCases, timeoutMs, languag
     const scriptPath = path.join(tempDir, 'test.js');
 
     await fs.writeFile(scriptPath, testScript);
-
-    console.log('NodeRunner: Executing in child process...');
 
     // Execute in child process (full Node.js environment)
     const result = await executeInChildProcess(scriptPath, timeoutMs);
@@ -296,7 +286,6 @@ try {
 // Execute code in child process (full Node.js environment)
 const executeInChildProcess = (scriptPath, timeoutMs) => {
   return new Promise((resolve) => {
-    console.log('NodeRunner: Spawning Node.js child process for:', scriptPath);
 
     const child = spawn('node', [scriptPath], {
       stdio: ['ignore', 'pipe', 'pipe']
@@ -315,14 +304,12 @@ const executeInChildProcess = (scriptPath, timeoutMs) => {
 
     // Set up timeout
     const timeoutHandle = setTimeout(() => {
-      console.log('NodeRunner: Child process timed out, killing...');
       child.kill('SIGTERM');
       setTimeout(() => child.kill('SIGKILL'), 1000); // Force kill after 1s
     }, timeoutMs);
 
     child.on('close', (code, signal) => {
       clearTimeout(timeoutHandle);
-      console.log(`NodeRunner: Child process closed with code ${code}, signal ${signal}`);
 
       if (signal === 'SIGTERM' || signal === 'SIGKILL') {
         resolve({
@@ -347,7 +334,6 @@ const executeInChildProcess = (scriptPath, timeoutMs) => {
 
     child.on('error', (error) => {
       clearTimeout(timeoutHandle);
-      console.log('NodeRunner: Child process spawn error:', error.message);
       resolve({
         error: `Child process failed: ${error.message}`,
         stdout: '',

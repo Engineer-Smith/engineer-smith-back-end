@@ -8,11 +8,7 @@ const createTest = async (req, res, next) => {
     const testData = req.body;
     const { orgId } = req.query;
 
-    console.log('createTest: Received status from frontend:', testData.status);
-
     const result = await testService.createTest(testData, user, orgId);
-    
-    console.log('createTest: Test saved with status:', result.status);
     
     res.status(201).json(result);
   } catch (error) {
@@ -48,12 +44,7 @@ const getAllTests = async (req, res, next) => {
       skip: req.query.skip || 0
     };
 
-    console.log('getAllTests: Query params:', filters);
-    console.log('getAllTests: User role:', user.role);
-
     const tests = await testService.getAllTests(filters, user);
-    
-    console.log('getAllTests: Found tests:', tests.length);
     
     res.json(tests);
   } catch (error) {

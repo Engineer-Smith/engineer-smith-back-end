@@ -1,4 +1,4 @@
-// server.js - Updated to use Socket Service for test session management
+// server.js - Updated with Socket Service and Notification Controller integration
 const express = require('express');
 const mongoose = require('mongoose');
 const helmet = require('helmet');
@@ -19,14 +19,20 @@ const server = http.createServer(app);
 const socketService = require('./services/socketService');
 const io = socketService.initialize(server);
 
-// FIXED: Import and inject the test session controller
+// Import and inject controllers
 const testSessionController = require('./controllers/testSessionController');
+const NotificationController = require('./controllers/notificationController');
+const notificationController = new NotificationController();
 
-// Inject dependencies (this was missing!)
+// Inject dependencies - bidirectional relationships
 socketService.setTestSessionController(testSessionController);
 testSessionController.setSocketService(socketService);
 
-console.log('Socket service and test session controller dependencies injected');
+socketService.setNotificationController(notificationController);
+notificationController.setSocketService(socketService);
+
+// Make controllers available to routes
+app.set('notificationController', notificationController);
 
 // Enhanced security middleware
 app.use(helmet({
@@ -41,20 +47,26 @@ app.use(helmet({
   },
 }));
 
-// CORS with enhanced cookie support
+// CORS with enhanced cookie support - FIXED to use environment variables
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) return callback(null, true);
-    
+
+    // Build allowed origins from environment variables and fallbacks
     const allowedOrigins = [
-      'http://localhost:5173',       // Vite dev server
-      'http://localhost:3000',       // Backup/alternative dev port
+      process.env.FRONTEND_URL || 'http://localhost:5173',  // Primary frontend
+      process.env.BACKEND_URL || 'http://localhost:7000',   // Backend (for health checks, etc.)
+      'http://localhost:5173',       // Vite dev server fallback
+      'http://localhost:3000',       // Rails backend (dev)
       'http://localhost:3001',       // Another common dev port
+      'http://localhost:8082',       // Simply Coding frontend (dev)
+      'https://simplycodingcourses.com', // Simply Coding production
+      'https://www.simplycodingcourses.com', // With www subdomain
       'https://engineersmith.com',
       'https://www.engineersmith.com'
-    ];
-    
+    ].filter((origin, index, self) => self.indexOf(origin) === index); // Remove duplicates
+
     if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -82,15 +94,24 @@ if (process.env.NODE_ENV === 'production') {
   app.set('trust proxy', 1);
 }
 
+// Make IO and controllers available to routes
+app.use((req, res, next) => {
+  req.io = io;
+  req.socketService = socketService;
+  req.notificationController = notificationController;
+  next();
+});
+
 // IMPROVED Rate limiting with development-friendly settings and IPv6 support
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
+// FIXED: Use correct environment variable names to match .env file
 const authLimiter = rateLimit({
-  windowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 minutes
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX_REQUESTS, 10) || (isDevelopment ? 20 : 5), // More lenient in dev
+  windowMs: parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW_MS, 10) || 900000, // 15 minutes
+  max: parseInt(process.env.LOGIN_RATE_LIMIT_MAX_REQUESTS, 10) || (isDevelopment ? 20 : 5), // More lenient in dev
   message: {
     error: 'Too many authentication attempts, please try again later.',
-    retryAfter: Math.ceil(900000 / 1000 / 60), // minutes
+    retryAfter: Math.ceil((parseInt(process.env.LOGIN_RATE_LIMIT_WINDOW_MS, 10) || 900000) / 1000 / 60), // minutes
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -103,7 +124,7 @@ const apiLimiter = rateLimit({
   max: parseInt(process.env.API_RATE_LIMIT_MAX_REQUESTS, 10) || (isDevelopment ? 500 : 1000), // More requests per window
   message: {
     error: 'Too many API requests, please try again later.',
-    retryAfter: Math.ceil((isDevelopment ? 60000 : 900000) / 1000 / 60), // minutes
+    retryAfter: Math.ceil((parseInt(process.env.API_RATE_LIMIT_WINDOW_MS, 10) || (isDevelopment ? 60000 : 900000)) / 1000 / 60), // minutes
   },
   standardHeaders: true,
   legacyHeaders: false,
@@ -159,6 +180,11 @@ const testsRoutes = require('./routes/tests');
 const testSessionsRoutes = require('./routes/testSessions');
 const resultsRoutes = require('./routes/results');
 const tagsRoutes = require('./routes/tags');
+const attemptRequestRoutes = require('./routes/attemptRequests');
+const adminOverrideRoutes = require('./routes/adminOverrides');
+const studentRoutes = require('./routes/student');
+const notificationRoutes = require('./routes/notifications');
+const manualScoringRoutes = require('./routes/manualScoring');
 
 // Mount routes
 app.use('/superadmin', superadminRoutes);
@@ -170,10 +196,15 @@ app.use('/api/tests', testsRoutes);
 app.use('/api/test-sessions', testSessionsRoutes);
 app.use('/api/results', resultsRoutes);
 app.use('/api/tags', tagsRoutes);
+app.use('/api/attempt-requests', attemptRequestRoutes);
+app.use('/api/student-overrides', adminOverrideRoutes);
+app.use('/api/student', studentRoutes);
+app.use('/api/notifications', notificationRoutes);
+app.use('/api/manual-scoring', manualScoringRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {
-  res.json({ 
+  res.json({
     message: 'EngineerSmith API server is running',
     version: '1.0.0',
     environment: process.env.NODE_ENV || 'development',
@@ -185,7 +216,12 @@ app.get('/', (req, res) => {
     socketService: {
       initialized: !!socketService.getIO(),
       status: 'active',
-      controllerInjected: !!socketService.testSessionController
+      testSessionControllerInjected: !!socketService.testSessionController,
+      notificationControllerInjected: !!socketService.notificationController
+    },
+    controllers: {
+      testSession: 'integrated',
+      notification: 'integrated'
     }
   });
 });
@@ -200,8 +236,8 @@ app.use((err, req, res, next) => {
 
   // Don't expose internal errors in production
   const status = err.status || 500;
-  const message = status === 500 && !isDevelopment 
-    ? 'Internal server error' 
+  const message = status === 500 && !isDevelopment
+    ? 'Internal server error'
     : err.message;
 
   res.status(status).json({
@@ -267,7 +303,7 @@ process.on('SIGTERM', async () => {
     }
     process.exit(0);
   });
-});
+}); 
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
@@ -289,11 +325,8 @@ connectDB();
 const PORT = process.env.PORT || 7000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT} in ${process.env.NODE_ENV || 'development'} mode`);
-  console.log(`Health check: http://localhost:${PORT}`);
-  console.log('Socket.IO service initialized and ready');
-  console.log('Test session controller integrated with socket service');
   if (isDevelopment) {
-    console.log('Development mode: Rate limiting is more lenient');
+    console.log(`Health check: http://localhost:${PORT}`);
     if (process.env.SKIP_RATE_LIMIT_DEV === 'true') {
       console.log('Rate limiting DISABLED in development');
     }
@@ -303,5 +336,6 @@ server.listen(PORT, () => {
 // Export socket service and io instance for use in other modules
 module.exports = {
   io,
-  socketService
+  socketService,
+  notificationController
 };

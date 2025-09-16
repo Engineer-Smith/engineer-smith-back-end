@@ -1,32 +1,23 @@
-// /controllers/questionController.js - UPDATED with duplicate detection and fixed testQuestion
+// /controllers/questionController.js
 const questionService = require('../services/question/questionService');
 const questionTestingService = require('../services/question/questionTestingService');
 const questionDuplicateService = require('../services/question/questionDuplicateService');
 const createError = require('http-errors');
 
-const generateRequestId = () => `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-
 const createQuestion = async (req, res, next) => {
-  const requestId = generateRequestId();
   try {
     const { user } = req;
     const questionData = req.body;
 
-    console.log(`createQuestion [${requestId}]: Creating ${questionData.type} question with category: ${questionData.category}`);
-
     const result = await questionService.createQuestion(questionData, user);
-
-    console.log(`createQuestion [${requestId}]: Question saved with _id:`, result._id);
 
     res.status(201).json(result);
   } catch (error) {
-    console.error(`createQuestion [${requestId}]: Error:`, error);
     next(error);
   }
 };
 
 const getQuestion = async (req, res, next) => {
-  const requestId = generateRequestId();
   try {
     const { user } = req;
     const { questionId } = req.params;
@@ -35,13 +26,11 @@ const getQuestion = async (req, res, next) => {
 
     res.json(result);
   } catch (error) {
-    console.error(`getQuestion [${requestId}]: Error:`, error);
     next(error);
   }
 };
 
 const getAllQuestions = async (req, res, next) => {
-  const requestId = generateRequestId();
   try {
     const { user } = req;
     const filters = {
@@ -54,24 +43,19 @@ const getAllQuestions = async (req, res, next) => {
       difficulty: req.query.difficulty,
       type: req.query.type,
       tag: req.query.tag,
-      status: req.query.status, // ADD THIS LINE
+      status: req.query.status,
       includeTotalCount: req.query.includeTotalCount
     };
-
-    console.log(`getAllQuestions [${requestId}]: Processing with filters:`, filters);
 
     const result = await questionService.getAllQuestions(filters, user);
 
     res.json(result);
   } catch (error) {
-    console.error(`getAllQuestions [${requestId}]: Error:`, error);
     next(error);
   }
 };
 
-// NEW: Check for duplicate questions
 const checkDuplicates = async (req, res, next) => {
-  const requestId = generateRequestId();
   try {
     const { user } = req;
     const searchParams = {
@@ -84,19 +68,10 @@ const checkDuplicates = async (req, res, next) => {
       codeTemplate: req.query.codeTemplate
     };
 
-    console.log(`checkDuplicates [${requestId}]: Checking for duplicates:`, {
-      type: searchParams.type,
-      language: searchParams.language,
-      titleLength: searchParams.title?.length || 0,
-      descriptionLength: searchParams.description?.length || 0
-    });
-
     // Validate required parameters
     questionDuplicateService.validateSearchParams(searchParams);
 
     const duplicates = await questionDuplicateService.findSimilarQuestions(searchParams, user);
-
-    console.log(`checkDuplicates [${requestId}]: Found ${duplicates.length} potential duplicates`);
 
     res.json({
       found: duplicates.length > 0,
@@ -109,13 +84,11 @@ const checkDuplicates = async (req, res, next) => {
       }
     });
   } catch (error) {
-    console.error(`checkDuplicates [${requestId}]: Error:`, error);
     next(error);
   }
 };
 
 const updateQuestion = async (req, res, next) => {
-  const requestId = generateRequestId();
   try {
     const { user } = req;
     const { questionId } = req.params;
@@ -129,45 +102,29 @@ const updateQuestion = async (req, res, next) => {
 
     const result = await questionService.updateQuestion(questionId, updateData, user);
 
-    console.log(`updateQuestion [${requestId}]: Question updated`);
-
     res.json(result);
   } catch (error) {
-    console.error(`updateQuestion [${requestId}]: Error:`, error);
     next(error);
   }
 };
 
 const deleteQuestion = async (req, res, next) => {
-  const requestId = generateRequestId();
   try {
     const { user } = req;
     const { questionId } = req.params;
 
     const result = await questionService.deleteQuestion(questionId, user);
 
-    console.log(`deleteQuestion [${requestId}]: Question deleted`);
-
     res.json(result);
   } catch (error) {
-    console.error(`deleteQuestion [${requestId}]: Error:`, error);
     next(error);
   }
 };
 
 const testQuestion = async (req, res, next) => {
-  const requestId = generateRequestId();
   try {
     const { user } = req;
-    const { questionData, testCode } = req.body; // Properly destructure the request body
-
-    console.log(`testQuestion [${requestId}]: Testing ${questionData?.type} question`);
-    console.log(`testQuestion [${requestId}]: User:`, {
-      userId: user?.userId,
-      role: user?.role,
-      organizationId: user?.organizationId,
-      isSuperOrgAdmin: user?.isSuperOrgAdmin
-    });
+    const { questionData, testCode } = req.body;
 
     // Validate that user exists and has required properties
     if (!user) {
@@ -182,30 +139,22 @@ const testQuestion = async (req, res, next) => {
       throw createError(400, 'User ID not found');
     }
 
-    // Pass parameters in correct order: questionData, testCode, user
     const result = await questionTestingService.testQuestion(questionData, testCode, user);
 
-    console.log(`testQuestion [${requestId}]: Test completed successfully`);
-    console.log(result)
     res.json(result);
   } catch (error) {
-    console.error(`testQuestion [${requestId}]: Error:`, error);
     next(error);
   }
 };
 
 const getQuestionStats = async (req, res, next) => {
-  const requestId = generateRequestId();
   try {
     const { user } = req;
-
-    console.log(`getQuestionStats [${requestId}]: Getting question statistics`);
 
     const result = await questionService.getQuestionStats(user);
 
     res.json(result);
   } catch (error) {
-    console.error(`getQuestionStats [${requestId}]: Error:`, error);
     next(error);
   }
 };
@@ -218,5 +167,5 @@ module.exports = {
   deleteQuestion,
   testQuestion,
   getQuestionStats,
-  checkDuplicates // NEW: Export the duplicate checking function
+  checkDuplicates
 };

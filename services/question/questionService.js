@@ -55,7 +55,7 @@ class QuestionService {
       .lean(); // Removed the .select() - now gets all fields
 
     // UPDATED: Use formatQuestionResponse for each question to ensure proper formatting
-    const formattedQuestions = questions.map(question => 
+    const formattedQuestions = questions.map(question =>
       formatQuestionResponse(question, user)
     );
 
@@ -87,25 +87,16 @@ class QuestionService {
     // Validate update data
     await validateQuestionData(updateData, 'update');
 
-    console.log('=== UPDATE DEBUG START ===');
-    console.log('Original question codeTemplate length:', question.codeTemplate?.length || 0);
-    console.log('Update data codeTemplate length:', updateData.codeTemplate?.length || 0);
-
     // Remove undefined fields from updateData to avoid overwriting with undefined
     const filteredUpdateData = Object.fromEntries(
       Object.entries(updateData).filter(([_, value]) => value !== undefined)
     );
-
-    console.log('Filtered update data keys:', Object.keys(filteredUpdateData));
 
     const updatedQuestion = await Question.findByIdAndUpdate(
       questionId,
       { $set: filteredUpdateData },
       { new: true, runValidators: true }
     );
-
-    console.log('Updated question codeTemplate length:', updatedQuestion.codeTemplate?.length || 0);
-    console.log('=== UPDATE DEBUG END ===');
 
     return formatQuestionResponse(updatedQuestion, user);
   }
@@ -230,7 +221,7 @@ class QuestionService {
       query.$or = [
         { isGlobal: true }
       ];
-      
+
       if (user.organizationId) {
         query.$or.push({ organizationId: user.organizationId });
       }
@@ -241,7 +232,13 @@ class QuestionService {
       query.isGlobal = filters.isGlobal === 'true';
     }
     if (filters.language) {
-      query.language = filters.language;
+      // Check if it's a comma-separated list
+      if (filters.language.includes(',')) {
+        const languages = filters.language.split(',').map(lang => lang.trim());
+        query.language = { $in: languages };
+      } else {
+        query.language = filters.language;
+      }
     }
     if (filters.category) {
       query.category = filters.category;
@@ -278,7 +275,7 @@ class QuestionService {
       query.$or = [
         { isGlobal: true }
       ];
-      
+
       if (user.organizationId) {
         query.$or.push({ organizationId: user.organizationId });
       }

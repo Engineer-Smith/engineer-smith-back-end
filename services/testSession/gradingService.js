@@ -5,8 +5,9 @@ const { gradeFillInBlanks } = require('../grading');
 
 // SIMPLIFIED: Submit final test session with complete grading
 const submitTestSession = async (sessionId, submissionData, user) => {
-  const mongoSession = await mongoose.startSession();
 
+
+  const mongoSession = await mongoose.startSession();
   let transactionCommitted = false;
 
   try {
@@ -49,7 +50,6 @@ const submitTestSession = async (sessionId, submissionData, user) => {
         };
       }
     }
-
     // Grade all questions and calculate final score
     const gradingResults = await gradeAllQuestions(session);
 
@@ -59,6 +59,9 @@ const submitTestSession = async (sessionId, submissionData, user) => {
     session.completedAt = new Date();
 
     await session.save({ session: mongoSession });
+
+    // Verify the session was actually updated within transaction
+    const verifySession = await TestSession.findById(sessionId).session(mongoSession);
 
     // Create Result document with enhanced details
     const result = await createResultDocument(session, gradingResults, mongoSession);
@@ -70,16 +73,18 @@ const submitTestSession = async (sessionId, submissionData, user) => {
     await mongoSession.commitTransaction();
     transactionCommitted = true;
 
+    // Final verification after commit - THIS IS CRITICAL
+    const finalVerifySession = await TestSession.findById(sessionId);
+
     // SIMPLIFIED: Clear timer through socket service (avoid circular dependency)
     try {
       // The socket service will clean up its own timers when the session completes
       // No need to call external functions
-      console.log(`Test session ${sessionId} completed successfully`);
     } catch (error) {
       console.warn('Timer cleanup note:', error.message);
     }
 
-    return {
+    const response = {
       success: true,
       sessionId: session._id,
       status: session.status,
@@ -91,12 +96,16 @@ const submitTestSession = async (sessionId, submissionData, user) => {
         'Test completed. Better luck next time!'
     };
 
+    return response;
+
   } catch (error) {
+    console.error(`[GRADING_SERVICE] Error in submitTestSession for session ${sessionId}:`, error);
+
     if (!transactionCommitted) {
       try {
         await mongoSession.abortTransaction();
       } catch (abortError) {
-        console.error('Error aborting transaction:', abortError);
+        console.error(`[GRADING_SERVICE] Error aborting transaction for session ${sessionId}:`, abortError);
       }
     }
     throw error;
@@ -104,7 +113,7 @@ const submitTestSession = async (sessionId, submissionData, user) => {
     try {
       mongoSession.endSession();
     } catch (endError) {
-      console.error('Error ending session:', endError);
+      console.error(`[GRADING_SERVICE] Error ending MongoDB session for ${sessionId}:`, endError);
     }
   }
 };
@@ -117,7 +126,6 @@ const gradeAllQuestions = async (session) => {
   let unansweredQuestions = 0;
 
   const gradeQuestion = async (question) => {
-    console.log(`Grading question ${question.questionId}: type=${question.questionData.type}, answer=${question.studentAnswer}`);
 
     // Check if question has been answered
     if (question.studentAnswer === null ||
@@ -126,7 +134,6 @@ const gradeAllQuestions = async (session) => {
       unansweredQuestions++;
       question.isCorrect = false;
       question.pointsEarned = 0;
-      console.log(`Question ${question.questionId}: unanswered`);
       return;
     }
 
@@ -181,8 +188,6 @@ const gradeAllQuestions = async (session) => {
     } else {
       incorrectAnswers++;
     }
-
-    console.log(`Question ${question.questionId}: isCorrect=${isCorrect}, pointsEarned=${pointsEarned}`);
   };
 
   // Grade all questions
@@ -215,8 +220,6 @@ const gradeAllQuestions = async (session) => {
     totalTimeUsed: Math.floor((Date.now() - session.startedAt.getTime()) / 1000)
   };
 
-  console.log(`Final grading results: ${totalEarnedPoints}/${totalPoints} points, ${correctAnswers} correct, ${incorrectAnswers} incorrect, ${unansweredQuestions} unanswered`);
-
   return {
     finalScore,
     totalEarnedPoints,
@@ -228,7 +231,6 @@ const gradeAllQuestions = async (session) => {
 
 // Grade code questions with execution
 const gradeCodeQuestionFinal = async (question) => {
-  console.log(`Re-grading code question ${question.questionId}`);
 
   if (!question.questionData.codeConfig || !question.questionData.testCases) {
     console.error(`Code question ${question.questionId} missing config or test cases`);
@@ -247,13 +249,6 @@ const gradeCodeQuestionFinal = async (question) => {
       runtime: question.questionData.codeConfig.runtime,
       entryFunction: question.questionData.codeConfig.entryFunction,
       timeoutMs: question.questionData.codeConfig.timeoutMs || 3000
-    });
-
-    console.log(`Code execution result for ${question.questionId}:`, {
-      success: result.success,
-      overallPassed: result.overallPassed,
-      totalTestsPassed: result.totalTestsPassed,
-      totalTests: result.totalTests
     });
 
     // Update question grading
@@ -328,8 +323,6 @@ const gradeFillInBlankFinal = async (question) => {
 
     question.isCorrect = gradingResult.allCorrect;
     question.pointsEarned = gradingResult.allCorrect ? question.points : 0;
-
-    console.log(`Fill-in-blank question ${question.questionId}: allCorrect=${gradingResult.allCorrect}, pointsEarned=${question.pointsEarned}/${question.points}`);
   } catch (error) {
     console.error('Final fill-in-blank grading error:', error);
     question.isCorrect = false;
@@ -344,7 +337,7 @@ const createResultDocument = async (session, gradingResults, mongoSession) => {
   // ENHANCED: Helper to create comprehensive question details for frontend
   const createQuestionDetails = (question, questionIndex) => {
     const questionData = question.questionData;
-    
+
     // Base question details that frontend expects
     const details = {
       title: questionData.title || `Question ${questionIndex + 1}`,
@@ -361,7 +354,7 @@ const createResultDocument = async (session, gradingResults, mongoSession) => {
     if (questionData.type === 'multipleChoice') {
       details.options = questionData.options || [];
       details.correctAnswer = questionData.correctAnswer;
-      
+
       // Create formatted options for display
       details.multipleChoiceOptions = (questionData.options || []).map((option, index) => ({
         value: index,
@@ -377,7 +370,7 @@ const createResultDocument = async (session, gradingResults, mongoSession) => {
     if (questionData.type === 'fillInTheBlank') {
       details.codeTemplate = questionData.codeTemplate || '';
       details.blanks = questionData.blanks || [];
-      
+
       // Process correct answers from blanks
       if (questionData.blanks && questionData.blanks.length > 0) {
         details.correctAnswer = {};
@@ -394,7 +387,7 @@ const createResultDocument = async (session, gradingResults, mongoSession) => {
       details.buggyCode = questionData.buggyCode || '';
       details.solutionCode = questionData.solutionCode || '';
       details.testCases = questionData.testCases || [];
-      
+
       if (questionData.codeConfig) {
         details.codeConfig = {
           runtime: questionData.codeConfig.runtime,
@@ -402,7 +395,7 @@ const createResultDocument = async (session, gradingResults, mongoSession) => {
           timeoutMs: questionData.codeConfig.timeoutMs || 3000
         };
       }
-      
+
       // For code questions, correctAnswer is typically the solution code
       details.correctAnswer = questionData.solutionCode || questionData.codeTemplate || '';
     }
@@ -424,10 +417,10 @@ const createResultDocument = async (session, gradingResults, mongoSession) => {
       details.blanks = question.questionData.blanks.map(blank => {
         const studentAnswer = question.studentAnswer?.[blank.id] || '';
         const correctAnswers = blank.correctAnswers || [];
-        const isCorrect = correctAnswers.some(correct => 
+        const isCorrect = correctAnswers.some(correct =>
           studentAnswer.toLowerCase().trim() === correct.toLowerCase().trim()
         );
-        
+
         return {
           id: blank.id,
           studentAnswer,
@@ -454,7 +447,7 @@ const createResultDocument = async (session, gradingResults, mongoSession) => {
 
     // For code questions: execution results and analysis
     if (['codeChallenge', 'codeDebugging'].includes(question.questionData.type) &&
-        question.questionData.category === 'logic') {
+      question.questionData.category === 'logic') {
       details.codeResults = {
         executed: question.studentAnswer ? true : false,
         passed: question.isCorrect || false,
@@ -573,15 +566,7 @@ const createResultDocument = async (session, gradingResults, mongoSession) => {
   });
 
   await result.save({ session: mongoSession });
-  
-  console.log(`Enhanced result document created with ${questions.length} questions and full details`);
-  console.log(`First question details:`, {
-    title: questions[0]?.questionDetails?.title,
-    type: questions[0]?.questionDetails?.type,
-    hasOptions: !!questions[0]?.questionDetails?.options,
-    hasCorrectAnswer: questions[0]?.questionDetails?.correctAnswer !== undefined
-  });
-  
+
   return result;
 };
 

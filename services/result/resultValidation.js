@@ -4,19 +4,29 @@ const createError = require('http-errors');
 class ResultValidation {
   async validateResultAccess(result, user) {
     const isSuperOrgAdminOrInstructor = user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
-    
+
     // If user is super org admin or instructor, they can access any result
     if (isSuperOrgAdminOrInstructor) {
       return true;
     }
 
+    // FIXED: Handle both populated and non-populated userId
+    let resultUserId;
+    if (result.userId && typeof result.userId === 'object' && result.userId._id) {
+      // result.userId is populated with user object
+      resultUserId = result.userId._id.toString();
+    } else {
+      // result.userId is just the ObjectId
+      resultUserId = result.userId.toString();
+    }
+
     // If user is not the owner of this result, check additional permissions
-    if (result.userId.toString() !== user.userId.toString()) {
+    if (resultUserId !== user.userId.toString()) {
       // Check if user is in same organization
       if (result.organizationId && result.organizationId.toString() !== user.organizationId.toString()) {
         throw createError(403, 'Unauthorized to access this result');
       }
-      
+
       // Only admins can access other users' results within same organization
       if (user.role !== 'admin') {
         throw createError(403, 'Only admins or instructors can access other users results');
@@ -28,13 +38,13 @@ class ResultValidation {
 
   validateAnalyticsAccess(user, orgId = null) {
     const isSuperOrgAdminOrInstructor = user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
-    
+
     if (!isSuperOrgAdminOrInstructor) {
       // Regular admins can only access their organization's analytics
       if (user.role !== 'admin' && user.role !== 'instructor') {
         throw createError(403, 'Only admins or instructors can access analytics');
       }
-      
+
       if (orgId && orgId !== user.organizationId.toString()) {
         throw createError(403, 'Unauthorized to access analytics for this organization');
       }
@@ -45,12 +55,12 @@ class ResultValidation {
 
   validateQuestionAnalyticsAccess(user, orgId = null) {
     const isSuperOrgAdminOrInstructor = user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
-    
+
     if (!isSuperOrgAdminOrInstructor) {
       if (user.role !== 'admin') {
         throw createError(403, 'Only admins or instructors can access question analytics');
       }
-      
+
       if (orgId && orgId !== user.organizationId.toString()) {
         throw createError(403, 'Unauthorized to access analytics for this organization');
       }
@@ -63,11 +73,11 @@ class ResultValidation {
     const validQuestionTypes = ['multipleChoice', 'trueFalse', 'codeChallenge', 'fillInTheBlank', 'codeDebugging'];
     const validDifficulties = ['easy', 'medium', 'hard'];
     const validStatuses = ['completed', 'expired', 'abandoned'];
-    
+
     if (filters.questionType && !validQuestionTypes.includes(filters.questionType)) {
       throw createError(400, 'Invalid question type');
     }
-    
+
     if (filters.difficulty && !validDifficulties.includes(filters.difficulty)) {
       throw createError(400, 'Invalid difficulty');
     }
@@ -209,12 +219,14 @@ class ResultValidation {
     // Question-specific filters (for analytics)
     if (filters.questionType || filters.difficulty || filters.language || filters.category) {
       // These would need to be handled with aggregation pipeline for question-level filtering
-      return { query, needsAggregation: true, questionFilters: {
-        type: filters.questionType,
-        difficulty: filters.difficulty,
-        language: filters.language,
-        category: filters.category
-      }};
+      return {
+        query, needsAggregation: true, questionFilters: {
+          type: filters.questionType,
+          difficulty: filters.difficulty,
+          language: filters.language,
+          category: filters.category
+        }
+      };
     }
 
     return { query, needsAggregation: false };
@@ -223,7 +235,7 @@ class ResultValidation {
   // NEW: Validate access to specific result fields
   validateFieldAccess(user, requestedFields = []) {
     const isSuperOrgAdminOrInstructor = user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
-    
+
     // Define field access levels
     const studentFields = ['score', 'status', 'completedAt', 'timeSpent', 'attemptNumber'];
     const instructorFields = [...studentFields, 'questions', 'sessionId', 'userId'];
@@ -240,7 +252,7 @@ class ResultValidation {
 
     // Check if all requested fields are allowed
     const unauthorizedFields = requestedFields.filter(field => !allowedFields.includes(field));
-    
+
     if (unauthorizedFields.length > 0) {
       throw createError(403, `Unauthorized access to fields: ${unauthorizedFields.join(', ')}`);
     }

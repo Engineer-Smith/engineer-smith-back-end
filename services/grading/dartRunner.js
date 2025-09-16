@@ -5,12 +5,6 @@ const path = require('path');
 const crypto = require('crypto');
 
 const runDartTests = async ({ code, entryFunction, testCases, timeoutMs }) => {
-  console.log('DartRunner: Starting execution with:', {
-    entryFunction,
-    testCaseCount: testCases.length,
-    timeoutMs,
-    codeLength: code.length
-  });
 
   let executionError = null;
   let compilationError = null;
@@ -28,8 +22,6 @@ const runDartTests = async ({ code, entryFunction, testCases, timeoutMs }) => {
     const scriptPath = path.join(tempDir, 'test.dart');
 
     await fs.writeFile(scriptPath, testScript);
-
-    console.log('DartRunner: Executing in child process...');
 
     // Execute in child process
     const result = await executeInChildProcess(scriptPath, timeoutMs);
@@ -419,7 +411,6 @@ void main() async {
 // Execute Dart code in child process
 const executeInChildProcess = (scriptPath, timeoutMs) => {
   return new Promise((resolve) => {
-    console.log('DartRunner: Spawning Dart child process for:', scriptPath);
 
     // Try 'dart' first, then fall back to 'dart run'
     const child = spawn('dart', [scriptPath], {
@@ -435,21 +426,16 @@ const executeInChildProcess = (scriptPath, timeoutMs) => {
 
     child.stderr.on('data', (data) => {
       stderr += data.toString();
-      console.log('DartRunner STDERR:', data.toString());
     });
 
     // Set up timeout
     const timeoutHandle = setTimeout(() => {
-      console.log('DartRunner: Child process timed out, killing...');
       child.kill('SIGTERM');
       setTimeout(() => child.kill('SIGKILL'), 1000); // Force kill after 1s
     }, timeoutMs);
 
     child.on('close', (code, signal) => {
       clearTimeout(timeoutHandle);
-      console.log(`DartRunner: Child process closed with code ${code}, signal ${signal}`);
-      console.log(`DartRunner STDOUT: ${stdout}`);
-      console.log(`DartRunner STDERR: ${stderr}`);
 
       if (signal === 'SIGTERM' || signal === 'SIGKILL') {
         resolve({

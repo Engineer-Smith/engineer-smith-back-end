@@ -107,4 +107,77 @@ testSchema.pre('save', function (next) {
   next();
 });
 
+// Add these methods to your existing Test model (/models/Test.js)
+
+// Helper method to get total allowed attempts for a student
+testSchema.methods.getAllowedAttemptsForStudent = async function (userId) {
+
+  const StudentTestOverride = require('./StudentTestOverride');
+
+  const override = await StudentTestOverride.findOne({
+    userId,
+    testId: this._id,
+    $or: [
+      { expiresAt: null },
+      { expiresAt: { $gt: new Date() } }
+    ]
+  });
+
+  const baseAttempts = this.settings.attemptsAllowed;
+  const extraAttempts = override?.extraAttempts || 0;
+  const totalAllowed = baseAttempts + extraAttempts;
+
+  return totalAllowed;
+};
+
+// Check if student can start new attempt
+testSchema.methods.canStudentAttempt = async function (userId) {
+  const TestSession = require('./TestSession');
+
+  const allowedAttempts = await this.getAllowedAttemptsForStudent(userId);
+
+  // ✅ FIXED: Handle both old and new session formats
+  const usedAttempts = await TestSession.countDocuments({
+    userId,
+    $or: [
+      { 'testSnapshot.originalTestId': this._id }, // New format
+      { testId: this._id }                         // Old format (fallback)
+    ],
+    status: { $in: ['completed', 'expired', 'abandoned'] }
+  });
+
+  return usedAttempts < allowedAttempts;
+};
+
+// Get remaining attempts for a student
+testSchema.methods.getRemainingAttempts = async function (userId) {
+
+  const TestSession = require('./TestSession');
+
+  const allowedAttempts = await this.getAllowedAttemptsForStudent(userId);
+
+  // Debug: Check what sessions exist
+  const allUserSessions = await TestSession.find({
+    userId,
+    $or: [
+      { 'testSnapshot.originalTestId': this._id }, // New format
+      { testId: this._id }                         // Old format (fallback)
+    ]
+  }).select('_id status createdAt testId testSnapshot.originalTestId');
+
+  // ✅ CRITICAL FIX: Handle both old and new session formats
+  const usedAttempts = await TestSession.countDocuments({
+    userId,
+    $or: [
+      { 'testSnapshot.originalTestId': this._id }, // New format
+      { testId: this._id }                         // Old format (fallback)
+    ],
+    status: { $in: ['completed', 'expired', 'abandoned'] }
+  });
+
+  const remaining = Math.max(0, allowedAttempts - usedAttempts);
+
+  return remaining;
+};
+
 module.exports = model('Test', testSchema);

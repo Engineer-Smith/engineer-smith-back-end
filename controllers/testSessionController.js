@@ -11,13 +11,11 @@ const adminService = require('../services/testSession/adminService');
 class TestSessionController {
   constructor() {
     this.socketService = null; // Will be injected
-    console.log('TestSessionController initialized');
   }
 
   // Inject socket service for real-time communication
   setSocketService(socketService) {
     this.socketService = socketService;
-    console.log('Socket service injected into test session controller');
   }
 
   /**
@@ -144,6 +142,7 @@ class TestSessionController {
   };
 
   // Submit final test
+  // Submit final test
   submitTestSession = async (req, res, next) => {
     try {
       const { user } = req;
@@ -153,12 +152,22 @@ class TestSessionController {
       // Stop timer
       timerService.clearTimer(sessionId);
 
-      // Submit for grading
+      // Submit for grading - THIS IS WHERE THE WAIT NEEDS TO HAPPEN
       const result = await gradingService.submitTestSession(
         sessionId,
         { forceSubmit },
         user
       );
+
+      // ADD THIS: Additional verification that session is actually completed
+      const TestSession = require('../models/TestSession');
+      const finalSession = await TestSession.findById(sessionId);
+
+      if (finalSession.status !== 'completed') {
+        console.error(`Session ${sessionId} not properly completed after grading. Status: ${finalSession.status}`);
+        throw new Error('Session was not properly completed');
+      }
+
 
       // Notify via socket if available
       if (this.socketService) {
@@ -178,25 +187,20 @@ class TestSessionController {
 
   // Abandon session
   abandonTestSession = async (req, res, next) => {
-     try {
-       console.log('Abandoning session:', req.params.sessionId, 'for user:', req.user.userId);
-       
-       // Stop timer
-       console.log('Clearing timer...');
-       timerService.clearTimer(req.params.sessionId);
-       
-       // Abandon session
-       console.log('Calling sessionManager.abandonSession...');
-       const result = await sessionManager.abandonSession(req.params.sessionId, req.user.userId);
-       
-       console.log('Abandon successful:', result);
-       res.json(result);
-       
-     } catch (error) {
-       console.error('Error in abandonTestSession:', error);
-       next(error);
-     }
-   };
+    try {
+
+      timerService.clearTimer(req.params.sessionId);
+
+      // Abandon session
+      const result = await sessionManager.abandonSession(req.params.sessionId, req.user.userId);
+
+      res.json(result);
+
+    } catch (error) {
+      console.error('Error in abandonTestSession:', error);
+      next(error);
+    }
+  };
 
   // Get session time sync
   getSessionTimeSync = async (req, res, next) => {
@@ -220,11 +224,10 @@ class TestSessionController {
   // Handle socket connection to session
   handleSocketJoin = async (sessionId, userId, socketId) => {
     try {
-      console.log(`Socket join: ${userId} connecting to session ${sessionId}`);
 
       // Get session status first
       const sessionStatus = await sessionManager.getSessionStatus(sessionId);
-      
+
       // If session is paused, handle reconnection during grace period
       if (sessionStatus.status === 'paused') {
         await this.resumeSessionAfterReconnection(sessionId);
@@ -259,7 +262,6 @@ class TestSessionController {
   // Handle socket rejoin
   handleSocketRejoin = async (sessionId, userId, socketId) => {
     try {
-      console.log(`Socket rejoin: ${userId} rejoining session ${sessionId}`);
 
       // Same as join for now
       return await this.handleSocketJoin(sessionId, userId, socketId);
@@ -277,7 +279,6 @@ class TestSessionController {
   // Handle answer submission via socket
   handleAnswerSubmit = async (sessionId, userId, answerData) => {
     try {
-      console.log(`Socket answer submit: ${userId} for session ${sessionId}`);
 
       // Process answer
       const result = await questionHandler.submitAnswer(sessionId, answerData);
@@ -304,54 +305,59 @@ class TestSessionController {
   // CORRECTED: Handle socket disconnection with proper grace period
   handleSocketDisconnection = async (sessionId, userId, reason) => {
     try {
-      console.log(`Socket disconnect: ${userId} from session ${sessionId}, reason: ${reason}`);
 
-      // Get session and store time used before pausing
+      // Get session and check if it's already completed
       const session = await sessionManager.getSessionInternal(sessionId);
-      
+
+      // DON'T PAUSE COMPLETED SESSIONS - This is the key fix
+      if (['completed', 'abandoned', 'expired'].includes(session.status)) {
+        return;
+      }
+
+      // Only proceed with pause logic for sessions that are actually in progress
       if (session.status === 'inProgress' && session.currentSectionStartedAt) {
         // Calculate time used in current section
         const timeUsedMs = Date.now() - session.currentSectionStartedAt.getTime();
         const timeUsedSeconds = Math.floor(timeUsedMs / 1000);
-        
+
         // Initialize sectionTimeUsed array if needed
         if (!session.sectionTimeUsed) {
           session.sectionTimeUsed = new Array(session.testSnapshot.sections?.length || 1).fill(0);
         }
-        
+
         // Store accumulated time for current section
-        session.sectionTimeUsed[session.currentSectionIndex] = 
+        session.sectionTimeUsed[session.currentSectionIndex] =
           (session.sectionTimeUsed[session.currentSectionIndex] || 0) + timeUsedSeconds;
-        
-        console.log(`Stored ${timeUsedSeconds}s for section ${session.currentSectionIndex}, total: ${session.sectionTimeUsed[session.currentSectionIndex]}s`);
+
+
+        // Mark session as paused and disconnected
+        session.status = 'paused';
+        session.isConnected = false;
+        session.disconnectedAt = new Date();
+        await session.save();
+
+        // Pause the test timer completely
+        timerService.pauseTimer(sessionId);
+
+        // Start 5-minute grace period timer
+        timerService.startGracePeriod(
+          sessionId,
+          this.handleGracePeriodExpired,
+          5 * 60 * 1000 // 5 minutes
+        );
+
+        // Notify via socket
+        if (this.socketService) {
+          this.socketService.sendSessionPaused(sessionId, {
+            reason: 'disconnection',
+            gracePeriodSeconds: 300,
+            message: 'Test paused due to disconnection. You have 5 minutes to reconnect before timer resumes.'
+          });
+        }
+
+      } else {
+        console.log(`[CONTROLLER] Session ${sessionId} status is ${session.status}, no pause action needed`);
       }
-
-      // Mark session as paused and disconnected
-      session.status = 'paused';
-      session.isConnected = false;
-      session.disconnectedAt = new Date();
-      await session.save();
-
-      // Pause the test timer completely
-      timerService.pauseTimer(sessionId);
-
-      // Start 5-minute grace period timer
-      timerService.startGracePeriod(
-        sessionId,
-        this.handleGracePeriodExpired,
-        5 * 60 * 1000 // 5 minutes
-      );
-
-      // Notify via socket
-      if (this.socketService) {
-        this.socketService.sendSessionPaused(sessionId, {
-          reason: 'disconnection',
-          gracePeriodSeconds: 300,
-          message: 'Test paused due to disconnection. You have 5 minutes to reconnect before timer resumes.'
-        });
-      }
-
-      console.log(`Session ${sessionId} paused for 5-minute grace period`);
 
     } catch (error) {
       console.error('Error handling socket disconnection:', error);
@@ -365,12 +371,6 @@ class TestSessionController {
   // Start timer for new session  
   startSessionTimer = async (sessionId, sessionData) => {
     try {
-      console.log(`Starting timer for session ${sessionId} with data:`, {
-        useSections: sessionData.useSections,
-        timeLimit: sessionData.timeLimit,
-        sectionInfo: sessionData.sectionInfo
-      });
-
       let timeLimit;
 
       if (sessionData.useSections && sessionData.sectionInfo) {
@@ -386,7 +386,6 @@ class TestSessionController {
       }
 
       const timeLimitMs = timeLimit * 60 * 1000;
-      console.log(`Calculated timer: ${timeLimit} minutes (${timeLimitMs}ms)`);
 
       timerService.startSectionTimer(
         sessionId,
@@ -395,8 +394,6 @@ class TestSessionController {
         this.handleTimerExpiration,
         this.handleTimerSync
       );
-
-      console.log(`Timer started for session ${sessionId}: ${timeLimit} minutes`);
 
     } catch (error) {
       console.error('Error starting session timer:', error);
@@ -418,7 +415,6 @@ class TestSessionController {
           this.handleTimerSync
         );
 
-        console.log(`Timer resumed for session ${sessionId}: ${sessionStatus.timeRemaining} seconds remaining`);
       } else {
         // Timer already expired
         await this.handleTimerExpiration(sessionId);
@@ -433,24 +429,23 @@ class TestSessionController {
   resumeSessionAfterReconnection = async (sessionId) => {
     try {
       const session = await sessionManager.getSessionInternal(sessionId);
-      
+
       // Check if grace period hasn't expired yet
       if (session.status === 'paused' && !session.gracePeriodExpired) {
-        console.log(`Student reconnected during grace period for session ${sessionId}`);
-        
+
         // Clear grace period timer since student reconnected
         timerService.clearGracePeriod(sessionId);
-        
+
         // Resume from paused state
         session.status = 'inProgress';
         session.isConnected = true;
         session.disconnectedAt = null;
-        
+
         // Reset section timer for continued timing
         if (session.testSnapshot.settings.useSections) {
           session.currentSectionStartedAt = new Date();
         }
-        
+
         await session.save();
 
         // Resume test timer from where it was paused
@@ -465,20 +460,18 @@ class TestSessionController {
             message: 'Welcome back! Test timer resumed from where you left off.'
           });
         }
-        
-        console.log(`Session ${sessionId} resumed from grace period`);
+
       } else {
         // Grace period already expired, just mark as connected
         session.isConnected = true;
         await session.save();
-        
+
         if (this.socketService) {
           this.socketService.sendSessionResumed(sessionId, {
             message: 'Reconnected. Note: Grace period expired, so timer continued while you were away.'
           });
         }
-        
-        console.log(`Session ${sessionId} reconnected after grace period expiration`);
+
       }
 
     } catch (error) {
@@ -493,7 +486,6 @@ class TestSessionController {
   // Handle timer expiration
   handleTimerExpiration = async (sessionId) => {
     try {
-      console.log(`Timer expired for session ${sessionId}`);
 
       const sessionStatus = await sessionManager.getSessionStatus(sessionId);
 
@@ -542,20 +534,19 @@ class TestSessionController {
   // CORRECTED: Grace period expiration should resume timer regardless of connection
   handleGracePeriodExpired = async (sessionId) => {
     try {
-      console.log(`Grace period expired for session ${sessionId} - resuming test timer`);
 
       const session = await sessionManager.getSessionInternal(sessionId);
-      
+
       // Resume the session (even if student still offline)
       session.status = 'inProgress'; // Resume test progression
       session.gracePeriodExpired = true; // Mark that grace period ended
       // Keep isConnected as false if student is still offline
-      
+
       // Reset section timer for continued timing
       if (session.testSnapshot.settings.useSections) {
         session.currentSectionStartedAt = new Date();
       }
-      
+
       await session.save();
 
       // Resume the test timer (this will continue counting down even if offline)
@@ -566,8 +557,7 @@ class TestSessionController {
       );
 
       if (success) {
-        console.log(`Test timer resumed for ${sessionId} after grace period expiration`);
-        
+
         // Notify if student reconnects later
         if (this.socketService) {
           this.socketService.sendToSession(sessionId, 'grace_period_expired', {
@@ -591,8 +581,6 @@ class TestSessionController {
     // The result.action contains the determined action type
     // But the execution results have different type values
     const actionType = result.action || result.type;
-
-    console.log(`Handling submission result: action=${result.action}, type=${result.type}, actionType=${actionType}`);
 
     switch (actionType) {
       case 'advance_to_next_question':  // From questionHandler.determineNextAction
@@ -632,8 +620,6 @@ class TestSessionController {
             showConfirmation: true
           });
         }
-
-        console.log(`Test session ${sessionId} completed with auto-submission`);
 
         return {
           type: 'test_completed_confirmation',
@@ -708,8 +694,6 @@ class TestSessionController {
         this.handleTimerSync
       );
 
-      console.log(`Timer started for section ${sectionInfo.index}: ${sectionInfo.timeLimit} minutes`);
-
     } catch (error) {
       console.error('Error starting timer for new section:', error);
     }
@@ -742,7 +726,6 @@ class TestSessionController {
           });
         }
 
-        console.log(`Advanced session ${sessionId} to section ${session.currentSectionIndex}`);
       } else {
         // No more sections - complete test
         await this.completeExpiredTest(sessionId);
@@ -774,7 +757,6 @@ class TestSessionController {
         });
       }
 
-      console.log(`Test session ${sessionId} completed successfully`);
       return result;
 
     } catch (error) {

@@ -1,4 +1,4 @@
-// /controllers/authController.js - Enhanced with firstName/lastName support
+// /controllers/authController.js - Enhanced with firstName/lastName support and Simple SSO
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const bcrypt = require('bcrypt');
@@ -44,6 +44,47 @@ const clearAuthCookies = (res) => {
   res.clearCookie('accessToken');
   res.clearCookie('refreshToken');
   res.clearCookie('csrfToken');
+};
+
+// Helper function to validate token with external site (for simple SSO)
+const validateSSOToken = async (token) => {
+  try {
+    // Decode JWT with shared secret
+    const decoded = jwt.verify(token, process.env.SSO_SHARED_SECRET);
+
+    return {
+      valid: true,
+      user: {
+        id: decoded.user_id,
+        email: decoded.email,
+        firstName: decoded.first_name,
+        lastName: decoded.last_name,
+        username: decoded.username
+      }
+    };
+  } catch (error) {
+    console.error('SSO JWT validation failed:', error.message);
+    return { valid: false };
+  }
+};
+
+// Helper function to determine organization from user data (for simple SSO)
+const determineUserOrganization = async (userData) => {
+  // If the external site provides an organization identifier
+  if (userData.organizationCode) {
+    const org = await Organization.findOne({ inviteCode: userData.organizationCode });
+    if (org) return org;
+  }
+
+  // If they provide an email domain mapping
+  if (userData.email) {
+    const domain = userData.email.split('@')[1];
+    // You could have domain-based org assignment logic here
+    // const org = await Organization.findOne({ allowedDomains: domain });
+  }
+
+  // Default to super org
+  return await Organization.findOne({ isSuperOrg: true });
 };
 
 // Register a new user (public)
@@ -217,13 +258,173 @@ const login = async (req, res, next) => {
   }
 };
 
-// SSO login (public)
+// Simple SSO login endpoint - this is what the external site links to directly
+const simpleSSOLogin = async (req, res, next) => {
+  try {
+    const { token, redirect } = req.query;
+
+    if (!token) {
+      const errorUrl = `${process.env.FRONTEND_URL}/auth/login?error=missing_token`;
+      return res.redirect(errorUrl);
+    }
+
+    // Validate token with external site
+    const userData = await validateSSOToken(token);
+
+    if (!userData || !userData.valid) {
+      const errorUrl = `${process.env.FRONTEND_URL}/auth/login?error=invalid_token`;
+      return res.redirect(errorUrl);
+    }
+
+    // Extract user information
+    const {
+      id: ssoId,
+      email,
+      firstName,
+      lastName,
+      username,
+      role: suggestedRole,
+      organizationCode
+    } = userData.user;
+
+    // Updated validation: email is optional, but we need ssoId, firstName, lastName
+    // and either email or username for creating loginId
+    if (!ssoId || !firstName || !lastName || (!email && !username)) {
+      const errorUrl = `${process.env.FRONTEND_URL}/auth/login?error=incomplete_user_data`;
+      return res.redirect(errorUrl);
+    }
+
+    // Check if user already exists - search by ssoId first, then by email if available
+    let searchQuery = { ssoId: ssoId };
+    if (email && email.trim()) {
+      searchQuery = {
+        $or: [
+          { ssoId: ssoId },
+          { email: email.toLowerCase() }
+        ]
+      };
+    }
+
+    let user = await User.findOne(searchQuery);
+    let isNewUser = false;
+
+    if (user) {
+      // Update existing user
+      user.ssoId = ssoId;
+      // Only update email if it's provided
+      if (email && email.trim()) {
+        user.email = email.toLowerCase();
+      }
+      user.firstName = firstName.trim();
+      user.lastName = lastName.trim();
+      user.isSSO = true;
+
+      // Update organization if provided and different
+      if (organizationCode) {
+        const newOrg = await Organization.findOne({ inviteCode: organizationCode });
+        if (newOrg && newOrg._id.toString() !== user.organizationId.toString()) {
+          user.organizationId = newOrg._id;
+        }
+      }
+
+      await user.save();
+    } else {
+      // Create new user
+      isNewUser = true;
+
+      // Determine organization
+      const organization = await determineUserOrganization(userData.user);
+      if (!organization) {
+        const errorUrl = `${process.env.FRONTEND_URL}/auth/login?error=no_organization`;
+        return res.redirect(errorUrl);
+      }
+
+      // Generate unique loginId - use email if available, otherwise use username
+      let loginId;
+      if (email && email.trim()) {
+        loginId = email.split('@')[0];
+      } else if (username) {
+        loginId = username;
+      } else {
+        // Fallback: use first part of firstName + lastName
+        loginId = `${firstName}${lastName}`.toLowerCase();
+      }
+      
+      loginId = loginId.toLowerCase().replace(/[^a-z0-9_-]/g, '');
+
+      // Ensure loginId is unique
+      let counter = 1;
+      let originalLoginId = loginId;
+      while (await User.findOne({ loginId })) {
+        loginId = `${originalLoginId}${counter}`;
+        counter++;
+      }
+
+      // Determine role
+      let userRole = 'student'; // default
+      if (suggestedRole && ['admin', 'instructor', 'student'].includes(suggestedRole)) {
+        userRole = suggestedRole;
+      }
+
+      // Create user object - only include email if it's provided
+      const userObj = {
+        loginId,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        ssoId,
+        organizationId: organization._id,
+        role: userRole,
+        isSSO: true,
+      };
+
+      // Only add email if it's provided and not empty
+      if (email && email.trim()) {
+        userObj.email = email.toLowerCase();
+      }
+
+      user = new User(userObj);
+      await user.save();
+    }
+
+    // Generate JWT tokens
+    const payload = {
+      userId: user._id,
+      loginId: user.loginId,
+      organizationId: user.organizationId,
+      role: user.role,
+    };
+
+    const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
+    const refreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
+    const csrfToken = generateCsrfToken();
+
+    setAuthCookies(res, accessToken, refreshToken, csrfToken);
+
+    // Redirect to success page or dashboard
+    let redirectUrl;
+    if (redirect && redirect.startsWith('/')) {
+      // Allow relative redirects only for security
+      redirectUrl = `${process.env.FRONTEND_URL}${redirect}`;
+    } else {
+      redirectUrl = `${process.env.FRONTEND_URL}/dashboard${isNewUser ? '?welcome=true' : ''}`;
+    }
+
+    return res.redirect(redirectUrl);
+
+  } catch (error) {
+    console.error('SSO Login Error:', error);
+    const errorUrl = `${process.env.FRONTEND_URL}/auth/login?error=sso_failed`;
+    return res.redirect(errorUrl);
+  }
+};
+
+// OAuth2 SSO login (public) - initiates OAuth2 flow
 const ssoLogin = passport.authenticate('oauth2', {
   session: false,
   failureRedirect: '/auth/login/failed',
 });
 
-// SSO callback (public)
+// OAuth2 SSO callback (public) - handles OAuth2 callback
 const ssoCallback = async (req, res, next) => {
   passport.authenticate('oauth2', { session: false }, async (err, user, info) => {
     try {
@@ -245,16 +446,10 @@ const ssoCallback = async (req, res, next) => {
       setAuthCookies(res, accessToken, refreshToken, csrfToken);
 
       // Redirect to frontend with success
-      const redirectUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://engineersmith.com/auth/callback?success=true'
-        : 'http://localhost:5173/auth/callback?success=true';
-      
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?success=true`;
       res.redirect(redirectUrl);
     } catch (error) {
-      const redirectUrl = process.env.NODE_ENV === 'production' 
-        ? 'https://engineersmith.com/auth/callback?error=sso_failed'
-        : 'http://localhost:5173/auth/callback?error=sso_failed';
-      
+      const redirectUrl = `${process.env.FRONTEND_URL}/auth/callback?error=sso_failed`;
       res.redirect(redirectUrl);
     }
   })(req, res, next);
@@ -280,14 +475,14 @@ const refreshToken = async (req, res, next) => {
       organizationId: user.organizationId,
       role: user.role,
     };
-    
+
     const accessToken = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRY });
     const newRefreshToken = jwt.sign(payload, process.env.JWT_REFRESH_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRY });
     const csrfToken = generateCsrfToken();
 
     setAuthCookies(res, accessToken, newRefreshToken, csrfToken);
 
-    res.json({ 
+    res.json({
       success: true,
       csrfToken,
     });
@@ -301,9 +496,9 @@ const refreshToken = async (req, res, next) => {
 const logout = async (req, res, next) => {
   try {
     clearAuthCookies(res);
-    res.json({ 
+    res.json({
       success: true,
-      message: 'Logged out successfully' 
+      message: 'Logged out successfully'
     });
   } catch (error) {
     next(error);
@@ -316,16 +511,10 @@ const getCurrentUser = async (req, res, next) => {
     const user = await User.findById(req.user.userId)
       .populate('organizationId', 'name inviteCode isSuperOrg')
       .select('-hashedPassword -ssoToken');
-    
+
     if (!user) {
       throw createError(404, 'User not found');
     }
-
-    console.log('getCurrentUser Debug:', {
-      userId: user._id,
-      organizationId: user.organizationId,
-      isPopulated: typeof user.organizationId === 'object'
-    });
 
     res.json({
       success: true,
@@ -387,7 +576,7 @@ const getSocketToken = async (req, res, next) => {
       process.env.JWT_SECRET,
       { expiresIn: '1h' }
     );
-    
+
     res.json({
       success: true,
       socketToken
@@ -397,14 +586,34 @@ const getSocketToken = async (req, res, next) => {
   }
 };
 
+const testSSOToken = async (req, res, next) => {
+  try {
+    const token = jwt.sign({
+      user_id: 'test123',
+      email: 'test@example.com',
+      first_name: 'John',
+      last_name: 'Doe',
+      username: 'johndoe',
+      exp: Math.floor(Date.now() / 1000) + (10 * 60) // 10 minutes
+    }, process.env.SSO_SHARED_SECRET, { algorithm: 'HS256' });
+
+    res.redirect(`/auth/sso/login?token=${token}`);
+  } catch (error) {
+    console.error('Test SSO token generation failed:', error);
+    res.status(500).json({ error: 'Failed to generate test token' });
+  }
+};
+
 module.exports = {
   register,
   login,
   logout,
-  ssoLogin,
-  ssoCallback,
+  ssoLogin,        // OAuth2 SSO (for future Google/GitHub integration)
+  ssoCallback,     // OAuth2 SSO callback
+  simpleSSOLogin,  // Simple token-based SSO (for simplycoding.org)
   refreshToken,
   getCurrentUser,
   validateInviteCode,
-  getSocketToken
+  getSocketToken,
+  testSSOToken
 };
