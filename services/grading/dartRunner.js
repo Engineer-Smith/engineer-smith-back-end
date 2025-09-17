@@ -1,4 +1,4 @@
-// /services/grading/runners/dartRunner.js - Enhanced with console log capture
+// /services/grading/runners/dartRunner.js - Fixed console capture issue
 const { spawn } = require('child_process');
 const fs = require('fs').promises;
 const path = require('path');
@@ -23,8 +23,17 @@ const runDartTests = async ({ code, entryFunction, testCases, timeoutMs }) => {
 
     await fs.writeFile(scriptPath, testScript);
 
+    console.log('DartRunner: Executing in child process...');
+
     // Execute in child process
     const result = await executeInChildProcess(scriptPath, timeoutMs);
+
+    console.log('DartRunner: Child process result:', {
+      hasError: !!result.error,
+      stdoutLength: result.stdout?.length || 0,
+      stderrLength: result.stderr?.length || 0,
+      errorMessage: result.error
+    });
 
     if (result.error) {
       executionError = result.error;
@@ -36,7 +45,7 @@ const runDartTests = async ({ code, entryFunction, testCases, timeoutMs }) => {
           overallPassed: testResults.overallPassed,
           totalTestsPassed: testResults.totalPassed,
           totalTests: testCases.length,
-          consoleLogs: testResults.consoleLogs || [], // NEW: Include console logs
+          consoleLogs: testResults.consoleLogs || [],
           executionError: null,
           compilationError: null
         };
@@ -62,38 +71,36 @@ const runDartTests = async ({ code, entryFunction, testCases, timeoutMs }) => {
     overallPassed: false,
     totalTestsPassed: 0,
     totalTests: testCases.length,
-    consoleLogs: [], // NEW: Include empty array for failed executions
+    consoleLogs: [],
     executionError,
     compilationError
   };
 };
 
-// Create a complete Dart script with console capture
+// Create a complete Dart script - FIXED console capture
 const createDartTestScriptWithConsoleCapture = (userCode, entryFunction, testCases) => {
   return `
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
 
-// Console capture setup
+// Console capture setup - FIXED VERSION
 List<Map<String, dynamic>> _consoleLogs = [];
-Function? _originalPrint;
+
+void capturedPrint(Object? object) {
+  String message = object?.toString() ?? '';
+  _consoleLogs.add({
+    'type': 'log',
+    'message': message,
+    'timestamp': DateTime.now().millisecondsSinceEpoch
+  });
+  // Also call original print for debugging (goes to stderr in our setup)
+  stderr.writeln('[PRINT] ' + message);
+}
 
 void setupConsoleCapture() {
-  // Store original print function
-  _originalPrint = print;
-  
-  // Override print function to capture output
-  print = (Object? object) {
-    String message = object?.toString() ?? '';
-    _consoleLogs.add({
-      'type': 'log',
-      'message': message,
-      'timestamp': DateTime.now().millisecondsSinceEpoch
-    });
-    // Also call original print for debugging (goes to stderr in our setup)
-    stderr.writeln('[PRINT] ' + message);
-  };
+  // Console capture is handled by using capturedPrint() instead of print()
+  // No need to override the global print function
 }
 
 List<Map<String, dynamic>> getConsoleLogs() {
@@ -450,7 +457,7 @@ const executeInChildProcess = (scriptPath, timeoutMs) => {
           stderr: stderr
         });
       } else {
-        // UPDATED: Extract JSON from stderr instead of stdout for Dart
+        // Extract JSON from stderr instead of stdout for Dart
         try {
           const jsonStart = stderr.indexOf('RESULT_JSON_START');
           const jsonEnd = stderr.indexOf('RESULT_JSON_END');

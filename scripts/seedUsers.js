@@ -18,132 +18,91 @@ async function seedUsers() {
     if (!engineerSmithOrg) {
       throw new Error('EngineerSmith super org not found');
     }
-    const testOrg = await Organization.findOne({ name: 'TestOrg' });
-    if (!testOrg) {
-      throw new Error('TestOrg not found');
+    const simplyCodingOrg = await Organization.findOne({ name: 'Simply Coding' });
+    if (!simplyCodingOrg) {
+      throw new Error('Simply Coding org not found');
     }
 
-    // Define users with updated model structure including firstName and lastName
+    // Define users with real production accounts
     const users = [
-      // EngineerSmith Super Org Users
+      // EngineerSmith Super Org Users - Real Admins
       {
-        loginId: 'admin_engineersmith',
-        firstName: 'Admin',
+        loginId: 'zachary_smith',
+        firstName: 'Zachary',
         lastName: 'Smith',
-        email: 'admin@engineersmith.com',
-        password: 'secureAdmin123',
+        email: 'zachary.6.smith@gmail.com',
+        password: 'TempPassword123!', // Should be changed on first login
         organizationId: engineerSmithOrg._id,
         role: 'admin',
         isSSO: false,
       },
       {
-        loginId: 'instructor_engineersmith',
-        firstName: 'Sarah',
-        lastName: 'Johnson',
-        email: 'instructor@engineersmith.com',
-        password: 'secureInstructor123',
+        loginId: 'jordan_burger',
+        firstName: 'Jordan',
+        lastName: 'Burger',
+        email: 'jordanburger22@gmail.com',
+        password: 'TempPassword123!', // Should be changed on first login
         organizationId: engineerSmithOrg._id,
-        role: 'instructor',
-        isSSO: false,
-      },
-      {
-        loginId: 'student_engineersmith',
-        firstName: 'Mike',
-        lastName: 'Wilson',
-        email: 'student@engineersmith.com',
-        password: 'secureStudent123',
-        organizationId: engineerSmithOrg._id,
-        role: 'student',
-        isSSO: false,
-      },
-      {
-        loginId: 'sso_user',
-        firstName: 'SSO',
-        lastName: 'User',
-        email: 'sso.user@engineersmith.com',
-        ssoId: 'sso123',
-        ssoToken: 'sso-token-placeholder',
-        organizationId: engineerSmithOrg._id,
-        role: 'student',
-        isSSO: true,
-      },
-      // TestOrg Users
-      {
-        loginId: 'admin_testorg',
-        firstName: 'Alex',
-        lastName: 'Rodriguez',
-        email: 'admin@testorg.com',
-        password: 'secureAdminTest123',
-        organizationId: testOrg._id,
         role: 'admin',
         isSSO: false,
       },
+      // EngineerSmith Demo Accounts
       {
-        loginId: 'instructor_testorg',
-        firstName: 'Emily',
-        lastName: 'Chen',
-        email: 'instructor@testorg.com',
-        password: 'secureInstructorTest123',
-        organizationId: testOrg._id,
-        role: 'instructor',
-        isSSO: false,
-      },
-      {
-        loginId: 'student_testorg',
-        firstName: 'David',
-        lastName: 'Brown',
-        email: 'student@testorg.com',
-        password: 'secureStudentTest123',
-        organizationId: testOrg._id,
-        role: 'student',
-        isSSO: false,
-      },
-      // Users with only username (no email) for testing
-      {
-        loginId: 'username_only_user',
-        firstName: 'Username',
-        lastName: 'Only',
-        // No email field
-        password: 'testPassword123',
+        loginId: 'demo_instructor_es',
+        firstName: 'Demo',
+        lastName: 'Instructor',
+        email: 'demo.instructor@engineersmith.com',
+        password: 'DemoInstructor123!',
         organizationId: engineerSmithOrg._id,
-        role: 'student',
-        isSSO: false,
-      },
-      // Test users for login credential testing
-      {
-        loginId: 'john_doe',
-        firstName: 'John',
-        lastName: 'Doe',
-        email: 'john.doe@example.com',
-        password: 'johnPassword123',
-        organizationId: testOrg._id,
-        role: 'student',
-        isSSO: false,
-      },
-      // Additional diverse test users
-      {
-        loginId: 'jane_smith',
-        firstName: 'Jane',
-        lastName: 'Smith',
-        email: 'jane.smith@testorg.com',
-        password: 'janePassword123',
-        organizationId: testOrg._id,
         role: 'instructor',
         isSSO: false,
       },
       {
-        loginId: 'test_student',
-        firstName: 'Test',
+        loginId: 'demo_student_es',
+        firstName: 'Demo',
         lastName: 'Student',
-        password: 'testStudent123',
+        email: 'demo.student@engineersmith.com',
+        password: 'DemoStudent123!',
         organizationId: engineerSmithOrg._id,
+        role: 'student',
+        isSSO: false,
+      },
+      // Simply Coding Org Users - Real Admin
+      {
+        loginId: 'seth_iorg',
+        firstName: 'Seth',
+        lastName: 'Iorg',
+        email: 'sethiorg11@gmail.com',
+        password: 'TempPassword123!', // Should be changed on first login
+        organizationId: simplyCodingOrg._id,
+        role: 'admin',
+        isSSO: false,
+      },
+      // Simply Coding Demo Accounts
+      {
+        loginId: 'demo_instructor_sc',
+        firstName: 'Demo',
+        lastName: 'Instructor',
+        email: 'demo.instructor@simplycoding.com',
+        password: 'DemoInstructor123!',
+        organizationId: simplyCodingOrg._id,
+        role: 'instructor',
+        isSSO: false,
+      },
+      {
+        loginId: 'demo_student_sc',
+        firstName: 'Demo',
+        lastName: 'Student',
+        email: 'demo.student@simplycoding.com',
+        password: 'DemoStudent123!',
+        organizationId: simplyCodingOrg._id,
         role: 'student',
         isSSO: false,
       },
     ];
 
-    // Clear existing users (optional - remove this if you want to keep existing users)
-    console.log('Clearing existing test users...');
+    // Clear existing users with these loginIds (optional - remove this if you want to keep existing users)
+    console.log('Clearing existing users with matching loginIds...');
     await User.deleteMany({
       loginId: { 
         $in: users.map(u => u.loginId) 
@@ -161,21 +120,19 @@ async function seedUsers() {
         continue;
       }
 
-      // Check if user already exists by email (if email is provided)
-      if (email) {
-        const existingUserByEmail = await User.findOne({ email });
-        if (existingUserByEmail) {
-          console.log(`User with email '${email}' already exists`);
-          continue;
-        }
+      // Check if user already exists by email
+      const existingUserByEmail = await User.findOne({ email });
+      if (existingUserByEmail) {
+        console.log(`User with email '${email}' already exists`);
+        continue;
       }
 
       // Create user object with required fields
       const userObj = {
         loginId: userData.loginId,
-        firstName: userData.firstName, // Required field
-        lastName: userData.lastName,   // Required field
-        email: userData.email || undefined, // Only set if provided
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        email: userData.email,
         organizationId: userData.organizationId,
         role: userData.role,
         isSSO: userData.isSSO,
@@ -186,52 +143,45 @@ async function seedUsers() {
         userObj.hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
       }
 
-      // Add SSO fields for SSO users
-      if (userData.isSSO) {
-        userObj.ssoId = userData.ssoId;
-        userObj.ssoToken = userData.ssoToken;
-      }
-
       const user = new User(userObj);
       await user.save();
       
       const fullName = `${firstName} ${lastName}`;
-      console.log(`✅ User created: ${loginId} (${fullName})${email ? ` [${email}]` : ''} - ${userData.role}`);
+      console.log(`✅ User created: ${loginId} (${fullName}) [${email}] - ${userData.role}`);
     }
 
-    console.log('\n🎉 User seeding completed successfully!');
-    console.log('\n📋 Test Login Credentials:');
+    console.log('\n🎉 Production user seeding completed successfully!');
+    console.log('\n📋 Production Login Credentials:');
     console.log('==========================================');
     console.log('🔑 Login with USERNAME or EMAIL:');
     console.log('');
-    console.log('SUPER ORG ADMINS:');
-    console.log('  • admin_engineersmith / admin@engineersmith.com → secureAdmin123');
+    console.log('ENGINEER SMITH ADMINS:');
+    console.log('  • zachary_smith / zachary.6.smith@gmail.com → TempPassword123!');
+    console.log('  • jordan_burger / jordanburger22@gmail.com → TempPassword123!');
     console.log('');
-    console.log('INSTRUCTORS:');
-    console.log('  • instructor_engineersmith / instructor@engineersmith.com → secureInstructor123');
-    console.log('  • instructor_testorg / instructor@testorg.com → secureInstructorTest123');
-    console.log('  • jane_smith / jane.smith@testorg.com → janePassword123');
+    console.log('ENGINEER SMITH DEMO ACCOUNTS:');
+    console.log('  • demo_instructor_es / demo.instructor@engineersmith.com → DemoInstructor123!');
+    console.log('  • demo_student_es / demo.student@engineersmith.com → DemoStudent123!');
     console.log('');
-    console.log('STUDENTS:');
-    console.log('  • student_engineersmith / student@engineersmith.com → secureStudent123');
-    console.log('  • john_doe / john.doe@example.com → johnPassword123');
-    console.log('  • student_testorg / student@testorg.com → secureStudentTest123');
-    console.log('  • test_student (no email) → testStudent123');
-    console.log('  • username_only_user (no email) → testPassword123');
+    console.log('SIMPLY CODING ADMIN:');
+    console.log('  • seth_iorg / sethiorg11@gmail.com → TempPassword123!');
     console.log('');
-    console.log('ORG ADMINS:');
-    console.log('  • admin_testorg / admin@testorg.com → secureAdminTest123');
+    console.log('SIMPLY CODING DEMO ACCOUNTS:');
+    console.log('  • demo_instructor_sc / demo.instructor@simplycoding.com → DemoInstructor123!');
+    console.log('  • demo_student_sc / demo.student@simplycoding.com → DemoStudent123!');
+    console.log('');
+    console.log('⚠️  IMPORTANT: Real admin users should change their passwords on first login!');
     console.log('==========================================\n');
 
     // Display user counts
     const totalUsers = await User.countDocuments();
     const engineerSmithUsers = await User.countDocuments({ organizationId: engineerSmithOrg._id });
-    const testOrgUsers = await User.countDocuments({ organizationId: testOrg._id });
+    const simplyCodingUsers = await User.countDocuments({ organizationId: simplyCodingOrg._id });
     
     console.log('📊 User Statistics:');
     console.log(`  • Total Users: ${totalUsers}`);
     console.log(`  • EngineerSmith Users: ${engineerSmithUsers}`);
-    console.log(`  • TestOrg Users: ${testOrgUsers}`);
+    console.log(`  • Simply Coding Users: ${simplyCodingUsers}`);
 
     // Disconnect
     await mongoose.disconnect();

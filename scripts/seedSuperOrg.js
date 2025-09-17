@@ -24,26 +24,26 @@ async function seedSuperOrg() {
       console.log('EngineerSmith super org already exists');
     }
 
-    // Seed Public Org
-    const publicOrg = {
-      name: 'Public Org',
+    // Seed Simply Coding Org
+    const simplyCodingOrg = {
+      name: 'Simply Coding',
       isSuperOrg: false,
-      inviteCode: 'PUBLIC2025',
+      inviteCode: 'SIMPLY2025',
     };
 
-    const existingPublicOrg = await Organization.findOne({ name: 'Public Org' });
-    if (!existingPublicOrg) {
-      await Organization.create(publicOrg);
-      console.log('Public Org created');
+    const existingSimplyCodingOrg = await Organization.findOne({ name: 'Simply Coding' });
+    if (!existingSimplyCodingOrg) {
+      await Organization.create(simplyCodingOrg);
+      console.log('Simply Coding org created');
     } else {
-      console.log('Public Org already exists');
+      console.log('Simply Coding org already exists');
     }
 
     // Disconnect
     await mongoose.disconnect();
     console.log('Disconnected from MongoDB');
   } catch (error) {
-    console.error('Error seeding super org:', error);
+    console.error('Error seeding organizations:', error);
     process.exit(1);
   }
 }

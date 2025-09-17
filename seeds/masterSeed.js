@@ -186,7 +186,8 @@ async function seedAllQuestions() {
     }
 
     console.log('\n🎯 All language seeding completed!');
-
+    
+    return totalQuestions;
   } catch (error) {
     console.error('💥 Master seeding failed:', error);
     throw error;
@@ -198,7 +199,6 @@ async function seedAllQuestions() {
     }
   }
 
-  return totalQuestions;
 }
 
 // Enhanced specific language seeding with dynamic counts

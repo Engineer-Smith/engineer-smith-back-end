@@ -59,7 +59,9 @@ const validateSSOToken = async (token) => {
         email: decoded.email,
         firstName: decoded.first_name,
         lastName: decoded.last_name,
-        username: decoded.username
+        username: decoded.username,
+        organization_code: decoded.organization_code,  // Add this line
+        role: decoded.role                             // Add this line
       }
     };
   } catch (error) {
@@ -284,7 +286,7 @@ const simpleSSOLogin = async (req, res, next) => {
       lastName,
       username,
       role: suggestedRole,
-      organizationCode
+      organization_code: organizationCode
     } = userData.user;
 
     // Updated validation: email is optional, but we need ssoId, firstName, lastName
@@ -334,6 +336,7 @@ const simpleSSOLogin = async (req, res, next) => {
 
       // Determine organization
       const organization = await determineUserOrganization(userData.user);
+
       if (!organization) {
         const errorUrl = `${process.env.FRONTEND_URL}/auth/login?error=no_organization`;
         return res.redirect(errorUrl);
@@ -349,7 +352,7 @@ const simpleSSOLogin = async (req, res, next) => {
         // Fallback: use first part of firstName + lastName
         loginId = `${firstName}${lastName}`.toLowerCase();
       }
-      
+
       loginId = loginId.toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
       // Ensure loginId is unique

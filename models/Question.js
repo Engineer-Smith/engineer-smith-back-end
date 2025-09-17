@@ -40,27 +40,27 @@ const VALID_TYPE_COMBINATIONS = {
     'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
   },
   'javascript': { 
-    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'logic': ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'], 
     'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
   },
   'typescript': { 
-    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'logic': ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'], 
     'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
   },
   'python': { 
-    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'logic': ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'], 
     'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
   },
   'sql': { 
-    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge'], 
+    'logic': ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge'], 
     'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
   },
   'dart': { 
-    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'logic': ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'], 
     'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
   },
   'express': { 
-    'logic': ['multipleChoice', 'trueFalse', 'codeChallenge', 'codeDebugging'], 
+    'logic': ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'], 
     'syntax': ['multipleChoice', 'trueFalse', 'fillInTheBlank'] 
   },
   'json': { 
