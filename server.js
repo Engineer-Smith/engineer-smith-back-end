@@ -64,7 +64,8 @@ app.use(cors({
       'https://simplycodingcourses.com', // Simply Coding production
       'https://www.simplycodingcourses.com', // With www subdomain
       'https://engineersmith.com',
-      'https://www.engineersmith.com'
+      'https://www.engineersmith.com',
+      
     ].filter((origin, index, self) => self.indexOf(origin) === index); // Remove duplicates
 
     if (allowedOrigins.includes(origin)) {

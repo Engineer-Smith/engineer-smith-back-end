@@ -17,7 +17,7 @@ const setAuthCookies = (res, accessToken, refreshToken, csrfToken = null) => {
   res.cookie('accessToken', accessToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'none', // Changed from 'strict' to 'none'
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
@@ -25,7 +25,7 @@ const setAuthCookies = (res, accessToken, refreshToken, csrfToken = null) => {
   res.cookie('refreshToken', refreshToken, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    sameSite: 'none', // Changed from 'strict' to 'none'
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
@@ -33,7 +33,7 @@ const setAuthCookies = (res, accessToken, refreshToken, csrfToken = null) => {
   if (csrfToken) {
     res.cookie('csrfToken', csrfToken, {
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'none', // Changed from 'strict' to 'none'
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
   }
