@@ -1,6 +1,7 @@
 // /services/socketService.js - Enhanced with notification support
 const jwt = require('jsonwebtoken');
 
+
 class SocketService {
     constructor() {
         this.io = null;
@@ -12,12 +13,84 @@ class SocketService {
     initialize(server) {
         const { Server } = require('socket.io');
 
+        // Debug logging
+        console.log('Socket.IO initialization - Environment variables:');
+        console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
+        console.log('NODE_ENV:', process.env.NODE_ENV);
+
         this.io = new Server(server, {
             cors: {
-                origin: process.env.FRONTEND_URL,
+                origin: function (origin, callback) {
+                    console.log(`Socket.IO CORS check - incoming origin: "${origin}"`);
+
+                    // Allow requests with no origin (mobile apps, etc.)
+                    if (!origin) {
+                        console.log('No origin provided, allowing request');
+                        return callback(null, true);
+                    }
+
+                    // Build allowed origins - include both with and without trailing slash
+                    const baseOrigins = [
+                        process.env.FRONTEND_URL || 'http://localhost:5173',
+                        process.env.BACKEND_URL || 'http://localhost:7000',
+                        'http://localhost:5173',
+                        'http://localhost:3000',
+                        'http://localhost:3001',
+                        'http://localhost:8082',
+                        'https://simplycodingcourses.com',
+                        'https://www.simplycodingcourses.com',
+                        'https://engineersmith.com',
+                        'https://www.engineersmith.com',
+                    ];
+
+                    // Create allowedOrigins with both trailing slash and no trailing slash versions
+                    const allowedOrigins = [];
+                    baseOrigins.forEach(origin => {
+                        allowedOrigins.push(origin);
+                        if (!origin.endsWith('/')) {
+                            allowedOrigins.push(origin + '/');
+                        }
+                    });
+
+                    // Remove duplicates
+                    const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
+
+                    console.log('Allowed origins:', uniqueAllowedOrigins);
+
+                    // Simple direct comparison since we now include both versions
+                    if (uniqueAllowedOrigins.includes(origin)) {
+                        console.log('✅ Origin allowed (direct match)');
+                        callback(null, true);
+                    } else {
+                        console.log('❌ Origin blocked');
+                        callback(new Error('Not allowed by CORS'));
+                    }
+                },
                 methods: ['GET', 'POST', 'PATCH', 'DELETE'],
                 credentials: true,
+                allowEIO3: true
             },
+            transports: ['polling', 'websocket'],
+            allowEIO3: true,
+            pingTimeout: 60000,
+            pingInterval: 25000,
+            cookie: process.env.NODE_ENV === 'production' ? {
+                name: 'io',
+                httpOnly: true,
+                secure: true,
+                sameSite: 'none'
+            } : false
+        });
+
+        // Add connection error logging
+        this.io.engine.on('connection_error', (err) => {
+            console.log('Socket.IO connection error:');
+            console.log('Error code:', err.code);
+            console.log('Error message:', err.message);
+            console.log('Error context:', err.context);
+            if (err.req) {
+                console.log('Request headers:', err.req.headers);
+            }
         });
 
         this.setupMiddleware();

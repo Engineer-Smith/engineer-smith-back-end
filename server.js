@@ -50,11 +50,16 @@ app.use(helmet({
 // CORS with enhanced cookie support - FIXED to use environment variables
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (mobile apps, Postman, etc.)
-    if (!origin) return callback(null, true);
+    console.log(`Express CORS check - incoming origin: "${origin}"`);
 
-    // Build allowed origins from environment variables and fallbacks
-    const allowedOrigins = [
+    // Allow requests with no origin (mobile apps, Postman, etc.)
+    if (!origin) {
+      console.log('No origin provided, allowing request');
+      return callback(null, true);
+    }
+
+    // Build allowed origins - include both with and without trailing slash
+    const baseOrigins = [
       process.env.FRONTEND_URL || 'http://localhost:5173',  // Primary frontend
       process.env.BACKEND_URL || 'http://localhost:7000',   // Backend (for health checks, etc.)
       'http://localhost:5173',       // Vite dev server fallback
@@ -65,12 +70,28 @@ app.use(cors({
       'https://www.simplycodingcourses.com', // With www subdomain
       'https://engineersmith.com',
       'https://www.engineersmith.com',
-      
-    ].filter((origin, index, self) => self.indexOf(origin) === index); // Remove duplicates
+    ];
 
-    if (allowedOrigins.includes(origin)) {
+    // Create allowedOrigins with both trailing slash and no trailing slash versions
+    const allowedOrigins = [];
+    baseOrigins.forEach(origin => {
+      allowedOrigins.push(origin);
+      if (!origin.endsWith('/')) {
+        allowedOrigins.push(origin + '/');
+      }
+    });
+
+    // Remove duplicates
+    const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
+
+    console.log('Express allowed origins:', uniqueAllowedOrigins);
+
+    // Simple direct comparison since we now include both versions
+    if (uniqueAllowedOrigins.includes(origin)) {
+      console.log('✅ Express origin allowed (direct match)');
       callback(null, true);
     } else {
+      console.log('❌ Express origin blocked');
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -304,7 +325,7 @@ process.on('SIGTERM', async () => {
     }
     process.exit(0);
   });
-}); 
+});
 
 process.on('SIGINT', async () => {
   console.log('SIGINT received, shutting down gracefully...');
