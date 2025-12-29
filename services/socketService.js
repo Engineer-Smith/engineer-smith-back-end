@@ -13,11 +13,6 @@ class SocketService {
     initialize(server) {
         const { Server } = require('socket.io');
 
-        // Debug logging
-        console.log('Socket.IO initialization - Environment variables:');
-        console.log('FRONTEND_URL:', process.env.FRONTEND_URL);
-        console.log('NODE_ENV:', process.env.NODE_ENV);
-
         this.io = new Server(server, {
             cors: {
                 origin: function (origin, callback) {
@@ -54,8 +49,6 @@ class SocketService {
 
                     // Remove duplicates
                     const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
-
-                    console.log('Allowed origins:', uniqueAllowedOrigins);
 
                     // Simple direct comparison since we now include both versions
                     if (uniqueAllowedOrigins.includes(origin)) {

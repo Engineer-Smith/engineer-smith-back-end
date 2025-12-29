@@ -1,0 +1,1542 @@
+[
+  {
+    "title": "HTML5 Semantic Elements",
+    "description": "Which of these is a semantic HTML5 element?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "<div>",
+      "<header>",
+      "<span>",
+      "<bold>"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Document Structure",
+    "description": "Which element should contain all visible content of an HTML page?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "<html>",
+      "<head>",
+      "<body>",
+      "<main>"
+    ],
+    "correctAnswer": 2
+  },
+  {
+    "title": "HTML Input Types",
+    "description": "Which input type is used for email addresses?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "text",
+      "email",
+      "mail",
+      "address"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Attributes",
+    "description": "Which attribute specifies an alternate text for an image?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "title",
+      "alt",
+      "description",
+      "text"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Lists",
+    "description": "Which element is used for an ordered list?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "<ul>",
+      "<ol>",
+      "<list>",
+      "<order>"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Tables",
+    "description": "Which element represents a table header cell?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "<td>",
+      "<th>",
+      "<header>",
+      "<thead>"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Links",
+    "description": "Which attribute in an <a> tag specifies the URL?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "src",
+      "href",
+      "link",
+      "url"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Meta Tags",
+    "description": "Which meta tag sets the character encoding?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "<meta charset=\"UTF-8\">",
+      "<meta encoding=\"UTF-8\">",
+      "<meta type=\"UTF-8\">",
+      "<meta lang=\"UTF-8\">"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML5 Article Element",
+    "description": "What is the <article> element used for?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "Navigation links",
+      "Independent, self-contained content",
+      "Page footer",
+      "Side content"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Form Methods",
+    "description": "Which HTTP method is default for HTML forms?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "POST",
+      "GET",
+      "PUT",
+      "DELETE"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML5 Video Element",
+    "description": "Which attribute makes a video start playing automatically?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "autostart",
+      "autoplay",
+      "auto",
+      "play"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Void Elements",
+    "description": "Which of these is a void element (self-closing)?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "<div>",
+      "<p>",
+      "<br>",
+      "<span>"
+    ],
+    "correctAnswer": 2
+  },
+  {
+    "title": "HTML Accessibility",
+    "description": "Which attribute provides accessible labels for form elements?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "title",
+      "label",
+      "for",
+      "aria-label"
+    ],
+    "correctAnswer": 3
+  },
+  {
+    "title": "HTML5 Canvas",
+    "description": "What is the <canvas> element used for?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "Displaying images",
+      "Drawing graphics with JavaScript",
+      "Creating animations",
+      "All of the above"
+    ],
+    "correctAnswer": 3
+  },
+  {
+    "title": "HTML Doctype",
+    "description": "What is the correct HTML5 doctype declaration?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "<!DOCTYPE html>",
+      "<!DOCTYPE HTML5>",
+      "<DOCTYPE html>",
+      "<!DOC html>"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML5 Storage",
+    "description": "Which HTML5 feature allows offline data storage?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "cookies",
+      "localStorage",
+      "sessionStorage",
+      "all of the above"
+    ],
+    "correctAnswer": 3
+  },
+  {
+    "title": "HTML Form Validation",
+    "description": "Which attribute adds client-side validation to form inputs?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "validate",
+      "required",
+      "check",
+      "verify"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Media Queries",
+    "description": "Where are CSS media queries typically defined in HTML?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "<body>",
+      "<head>",
+      "<meta>",
+      "<style>"
+    ],
+    "correctAnswer": 3
+  },
+  {
+    "title": "HTML Microdata",
+    "description": "What is the purpose of microdata in HTML5?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "hard",
+    "options": [
+      "Styling elements",
+      "Adding structured data",
+      "Creating animations",
+      "Form validation"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Shadow DOM",
+    "description": "What does Shadow DOM provide in HTML?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "hard",
+    "options": [
+      "Better performance",
+      "Encapsulated styling",
+      "Faster loading",
+      "Mobile optimization"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Web Components",
+    "description": "Which JavaScript API is used to define custom elements?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "hard",
+    "options": [
+      "document.createElement()",
+      "customElements.define()",
+      "element.register()",
+      "HTML.define()"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Viewport Meta",
+    "description": "What does the viewport meta tag control?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "Page title",
+      "Page layout on mobile",
+      "Page loading speed",
+      "Page security"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML ARIA Roles",
+    "description": "What do ARIA roles provide?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "Visual styling",
+      "Accessibility information",
+      "Performance optimization",
+      "Mobile responsiveness"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML5 Geolocation",
+    "description": "How is geolocation accessed in HTML5?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "<geo> element",
+      "navigator.geolocation",
+      "<location> tag",
+      "GPS attribute"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Critical Rendering Path",
+    "description": "Which elements block page rendering by default?",
+    "type": "multipleChoice",
+    "language": "html",
+    "difficulty": "hard",
+    "options": [
+      "<img>",
+      "<script>",
+      "<div>",
+      "<p>"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Case Sensitivity",
+    "description": "HTML tags are case-sensitive.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Form Validation",
+    "description": "The 'required' attribute provides client-side form validation in HTML5.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Nesting Rules",
+    "description": "Block-level elements can contain inline elements.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Comments",
+    "description": "HTML comments are visible to users in the browser.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML5 New Elements",
+    "description": "HTML5 introduced new semantic elements like <section> and <article>.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Attribute Quotes",
+    "description": "Attribute values in HTML must always be enclosed in quotes.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Image Loading",
+    "description": "Images with missing 'src' attributes will show broken image icons.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Form Action",
+    "description": "A form without an 'action' attribute submits to the current page.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Element IDs",
+    "description": "Multiple elements can have the same ID attribute value.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Whitespace",
+    "description": "Multiple consecutive spaces in HTML are collapsed into a single space.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML5 Audio Support",
+    "description": "All browsers support the same audio formats in HTML5.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Table Accessibility",
+    "description": "The <caption> element improves table accessibility.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Script Tag",
+    "description": "Scripts in the <head> block page rendering until they load.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML5 Validation",
+    "description": "HTML5 provides built-in form validation without JavaScript.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "easy",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Meta Viewport",
+    "description": "The viewport meta tag is required for responsive web design.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML5 Semantic Meaning",
+    "description": "Semantic HTML elements have built-in styling by default.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 1
+  },
+  {
+    "title": "HTML Document Loading",
+    "description": "The DOM is built incrementally as HTML is parsed.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "hard",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML5 Offline Storage",
+    "description": "localStorage persists after the browser is closed.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Accessibility",
+    "description": "Screen readers can understand the structure of semantic HTML better than div-based layouts.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "HTML Performance",
+    "description": "The position of <script> tags affects page loading performance.",
+    "type": "trueFalse",
+    "language": "html",
+    "difficulty": "medium",
+    "options": [
+      "true",
+      "false"
+    ],
+    "correctAnswer": 0
+  },
+  {
+    "title": "Responsive Image Layout",
+    "description": "Complete the responsive image setup for optimal UX:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "medium",
+    "codeTemplate": "<___blank1___>\n  <img src=\"image-large.jpg\" \n       ___blank2___=\"Profile photo of John Smith\" \n       loading=\"___blank3___\"\n       width=\"300\" \n       height=\"200\">\n  <___blank4___>John Smith - CEO</figcaption>\n</figure>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "figure"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b13"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "alt"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b14"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "lazy"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b15"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "figcaption"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b16"
+      }
+    ]
+  },
+  {
+    "title": "Accessible Navigation Menu",
+    "description": "Complete the accessible navigation structure for better UX:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "medium",
+    "codeTemplate": "<___blank1___ role=\"navigation\" aria-label=\"Main navigation\">\n  <___blank2___>\n    <li><a href=\"/home\" aria-current=\"page\">Home</a></li>\n    <li><a href=\"/about\">About</a></li>\n    <li><a href=\"/contact\">Contact</a></li>\n  </ul>\n</nav>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "nav"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b18"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "ul"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b19"
+      }
+    ]
+  },
+  {
+    "title": "Interactive Form Components",
+    "description": "Complete the interactive form with user-friendly elements:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "medium",
+    "codeTemplate": "<form>\n  <___blank1___>\n    <legend>Personal Information</legend>\n    \n    <div class=\"form-group\">\n      <label for=\"name\">Full Name:</label>\n      <input type=\"text\" id=\"name\" name=\"name\" ___blank2___ \n             placeholder=\"Enter your full name\">\n    </div>\n    \n    <div class=\"form-group\">\n      <label for=\"email\">Email:</label>\n      <input type=\"___blank3___\" id=\"email\" name=\"email\" required>\n    </div>\n  </fieldset>\n  \n  <___blank4___ type=\"submit\">Register</button>\n</form>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "fieldset"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b1b"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "required"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b1c"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "email"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b1d"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "button"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b1e"
+      }
+    ]
+  },
+  {
+    "title": "Media Player Interface",
+    "description": "Complete the media player with user controls:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "medium",
+    "codeTemplate": "<___blank1___ ___blank2___ muted poster=\"thumbnail.jpg\">\n  <source src=\"video.mp4\" type=\"video/mp4\">\n  <source src=\"video.webm\" type=\"video/webm\">\n  <___blank3___ kind=\"captions\" src=\"captions.vtt\" srclang=\"en\" label=\"English\">\n  Your browser does not support the video tag.\n</video>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "video"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b20"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "controls"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b21"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "track"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b22"
+      }
+    ]
+  },
+  {
+    "title": "Card-Based Content Layout",
+    "description": "Complete the card layout for content presentation:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "easy",
+    "codeTemplate": "<___blank1___ class=\"product-card\">\n  <___blank2___>\n    <h3>Product Title</h3>\n    <p>Product description goes here...</p>\n    <div class=\"price\">$29.99</div>\n    <button>Add to Cart</button>\n  </header>\n</article>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "article"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b24"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "header"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b25"
+      }
+    ]
+  },
+  {
+    "title": "Data Table with Accessibility",
+    "description": "Complete the data table for accessible information display:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "hard",
+    "codeTemplate": "<table>\n  <___blank1___>Product Sales Report</caption>\n  <___blank2___>\n    <tr>\n      <___blank3___ scope=\"col\">Product</th>\n      <th scope=\"col\">Q1 Sales</th>\n      <th scope=\"col\">Q2 Sales</th>\n    </tr>\n  </thead>\n  \n  <___blank4___>\n    <tr>\n      <th scope=\"row\">Widget A</th>\n      <___blank5___>$10,000</td>\n      <td>$12,000</td>\n    </tr>\n  </tbody>\n</table>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "caption"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b27"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "thead"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b28"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "th"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b29"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "tbody"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b2a"
+      },
+      {
+        "id": "blank5",
+        "correctAnswers": [
+          "td"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b2b"
+      }
+    ]
+  },
+  {
+    "title": "Progressive Enhancement Layout",
+    "description": "Complete the progressive enhancement structure:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "medium",
+    "codeTemplate": "<___blank1___ class=\"hero-section\">\n  <div class=\"container\">\n    <h1>Welcome to Our Site</h1>\n    <p>Experience the future of web development</p>\n    <a href=\"#features\" class=\"cta-button\">Learn More</a>\n  </div>\n</section>\n\n<___blank2___ id=\"features\">\n  <div class=\"container\">\n    <h2>Our Features</h2>\n    <div class=\"feature-grid\">\n      <___blank3___ class=\"feature\">\n        <h3>Fast Performance</h3>\n        <p>Lightning-fast load times</p>\n      </article>\n    </div>\n  </div>\n</main>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "section"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b2d"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "main"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b2e"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "article"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b2f"
+      }
+    ]
+  },
+  {
+    "title": "Interactive Content Components",
+    "description": "Complete the interactive content with disclosure widgets:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "hard",
+    "codeTemplate": "<___blank1___>\n  <___blank2___>Frequently Asked Questions</summary>\n  <div class=\"faq-content\">\n    <h3>What is your return policy?</h3>\n    <p>We offer a 30-day return policy...</p>\n    \n    <h3>Do you offer international shipping?</h3>\n    <p>Yes, we ship worldwide...</p>\n  </div>\n</details>\n\n<___blank3___ open>\n  <summary>Special Offer</summary>\n  <p>Get 20% off your first order!</p>\n</details>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "details"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b31"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "summary"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b32"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "details"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b33"
+      }
+    ]
+  },
+  {
+    "title": "Search Interface Components",
+    "description": "Complete the search interface for user interaction:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "medium",
+    "codeTemplate": "<form role=\"search\" class=\"search-form\">\n  <___blank1___ for=\"search\">Search our site:</label>\n  <input type=\"___blank2___\" id=\"search\" name=\"q\" \n         placeholder=\"Enter keywords...\" \n         autocomplete=\"off\"\n         ___blank3___=\"search-suggestions\">\n  \n  <___blank4___ id=\"search-suggestions\" role=\"listbox\">\n    <!-- Dynamic suggestions will be populated here -->\n  </datalist>\n  \n  <button type=\"submit\">Search</button>\n</form>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "label"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b35"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "search"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b36"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "list"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b37"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "datalist"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b38"
+      }
+    ]
+  },
+  {
+    "title": "Responsive Content Grid",
+    "description": "Complete the responsive content grid layout:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "ui",
+    "difficulty": "medium",
+    "codeTemplate": "<___blank1___ class=\"content-grid\">\n  <___blank2___ class=\"main-content\">\n    <article>\n      <h2>Main Article</h2>\n      <p>Primary content goes here...</p>\n    </article>\n  </main>\n  \n  <___blank3___ class=\"sidebar\">\n    <section class=\"related\">\n      <h3>Related Articles</h3>\n      <ul>\n        <li><a href=\"#\">Article 1</a></li>\n        <li><a href=\"#\">Article 2</a></li>\n      </ul>\n    </section>\n  </aside>\n</div>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "div"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b3a"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "main"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b3b"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "aside"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b3c"
+      }
+    ]
+  },
+  {
+    "title": "HTML5 Document Structure",
+    "description": "Complete the basic HTML5 document structure:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "easy",
+    "codeTemplate": "<!DOCTYPE ___blank1___>\n<html lang=\"en\">\n<___blank2___>\n  <meta charset=\"___blank3___\">\n  <title>My Page</title>\n</head>\n<___blank4___>\n  <h1>Welcome</h1>\n</body>\n</html>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "html"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b3e"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "head"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b3f"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "UTF-8",
+          "utf-8"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b40"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "body"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b41"
+      }
+    ]
+  },
+  {
+    "title": "HTML Meta Tags Syntax",
+    "description": "Complete the essential meta tags for SEO and responsiveness:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "medium",
+    "codeTemplate": "<head>\n  <meta ___blank1___=\"UTF-8\">\n  <meta name=\"viewport\" content=\"width=___blank2___, initial-scale=1.0\">\n  <meta name=\"___blank3___\" content=\"Page description for search engines\">\n  <meta name=\"___blank4___\" content=\"html, css, javascript, web development\">\n  <title>Page Title</title>\n</head>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "charset"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b43"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "device-width"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b44"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "description"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b45"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "keywords"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b46"
+      }
+    ]
+  },
+  {
+    "title": "HTML Input Types Syntax",
+    "description": "Complete the form with modern HTML5 input types:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "medium",
+    "codeTemplate": "<form>\n  <input type=\"___blank1___\" placeholder=\"Enter your email\">\n  <input type=\"___blank2___\" placeholder=\"Enter your phone\">\n  <input type=\"___blank3___\" min=\"18\" max=\"100\">\n  <input type=\"___blank4___\" min=\"2024-01-01\" max=\"2024-12-31\">\n  <input type=\"___blank5___\" accept=\"image/*\">\n  <input type=\"range\" min=\"0\" max=\"100\" ___blank6___=\"50\">\n</form>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "email"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b48"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "tel"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b49"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "number"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b4a"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "date"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b4b"
+      },
+      {
+        "id": "blank5",
+        "correctAnswers": [
+          "file"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b4c"
+      },
+      {
+        "id": "blank6",
+        "correctAnswers": [
+          "value"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b4d"
+      }
+    ]
+  },
+  {
+    "title": "HTML Semantic Layout Syntax",
+    "description": "Complete the HTML5 semantic page layout:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "medium",
+    "codeTemplate": "<___blank1___>\n  <h1>Site Title</h1>\n  <nav>Navigation</nav>\n</header>\n\n<___blank2___>\n  <___blank3___ class=\"content\">\n    <h2>Article Title</h2>\n    <p>Article content...</p>\n  </article>\n  \n  <___blank4___ class=\"sidebar\">\n    <h3>Related Links</h3>\n  </aside>\n</main>\n\n<___blank5___>\n  <p>&copy; 2024 Company Name</p>\n</footer>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "header"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b4f"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "main"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b50"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "article"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b51"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "aside"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b52"
+      },
+      {
+        "id": "blank5",
+        "correctAnswers": [
+          "footer"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b53"
+      }
+    ]
+  },
+  {
+    "title": "HTML Link Attributes Syntax",
+    "description": "Complete the link elements with proper attributes:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "medium",
+    "codeTemplate": "<head>\n  <link ___blank1___=\"stylesheet\" href=\"styles.css\">\n  <link rel=\"___blank2___\" href=\"favicon.ico\">\n  <link rel=\"___blank3___\" href=\"manifest.json\">\n</head>\n\n<body>\n  <a href=\"https://example.com\" ___blank4___=\"_blank\" \n     ___blank5___=\"noopener noreferrer\">External Link</a>\n</body>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "rel"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b55"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "icon"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b56"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "manifest"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b57"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "target"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b58"
+      },
+      {
+        "id": "blank5",
+        "correctAnswers": [
+          "rel"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b59"
+      }
+    ]
+  },
+  {
+    "title": "HTML Accessibility Attributes Syntax",
+    "description": "Complete the accessible form elements:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "hard",
+    "codeTemplate": "<form>\n  <label ___blank1___=\"username\">Username:</label>\n  <input type=\"text\" id=\"username\" ___blank2___-describedby=\"username-help\">\n  <div id=\"username-help\">Must be 3-20 characters</div>\n  \n  <button type=\"submit\" ___blank3___-label=\"Submit registration form\">\n    Submit\n  </button>\n  \n  <div ___blank4___=\"alert\" ___blank5___-live=\"polite\">\n    Form validation messages will appear here\n  </div>\n</form>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "for"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b5e"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "aria"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b5f"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "aria"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b60"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "role"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b61"
+      },
+      {
+        "id": "blank5",
+        "correctAnswers": [
+          "aria"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b62"
+      }
+    ]
+  },
+  {
+    "title": "HTML Script and Style Syntax",
+    "description": "Complete the script and style element syntax:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "medium",
+    "codeTemplate": "<head>\n  <___blank1___ type=\"text/css\">\n    body { font-family: Arial, sans-serif; }\n  </style>\n  \n  <script ___blank2___=\"application/ld+json\">\n  {\n    \"@context\": \"https://schema.org\",\n    \"@type\": \"WebPage\"\n  }\n  </script>\n</head>\n\n<body>\n  <script src=\"app.js\" ___blank3___></script>\n  <script src=\"analytics.js\" ___blank4___></script>\n</body>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "style"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b64"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "type"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b65"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "defer"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b66"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "async"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b67"
+      }
+    ]
+  },
+  {
+    "title": "HTML Media Element Syntax",
+    "description": "Complete the media element with proper syntax:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "medium",
+    "codeTemplate": "<___blank1___ controls preload=\"metadata\">\n  <___blank2___ src=\"audio.mp3\" type=\"audio/mpeg\">\n  <source src=\"audio.ogg\" type=\"audio/___blank3___\">\n  Your browser does not support the audio element.\n</audio>\n\n<video width=\"320\" height=\"240\" ___blank4___ poster=\"thumb.jpg\">\n  <source src=\"movie.mp4\" type=\"video/mp4\">\n  <___blank5___ kind=\"subtitles\" src=\"subs.vtt\" srclang=\"en\">\n</video>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "audio"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b69"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "source"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b6a"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "ogg"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b6b"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "controls"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b6c"
+      },
+      {
+        "id": "blank5",
+        "correctAnswers": [
+          "track"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b6d"
+      }
+    ]
+  },
+  {
+    "title": "HTML Data Attributes Syntax",
+    "description": "Complete the data attributes and microdata syntax:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "hard",
+    "codeTemplate": "<article ___blank1___-id=\"123\" itemscope itemtype=\"https://schema.org/Article\">\n  <h1 ___blank2___=\"headline\">Article Title</h1>\n  \n  <div class=\"author\" ___blank3___ itemtype=\"https://schema.org/Person\">\n    <span itemprop=\"name\">John Doe</span>\n    <time ___blank4___=\"datePublished\" datetime=\"2024-01-15\">January 15, 2024</time>\n  </div>\n  \n  <div ___blank5___=\"articleBody\">\n    <p>Article content goes here...</p>\n  </div>\n</article>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "data"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b6f"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "itemprop"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b70"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "itemscope"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b71"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "itemprop"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b72"
+      },
+      {
+        "id": "blank5",
+        "correctAnswers": [
+          "itemprop"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b73"
+      }
+    ]
+  },
+  {
+    "title": "HTML Template and Slot Syntax",
+    "description": "Complete the template and web component syntax:",
+    "type": "fillInTheBlank",
+    "language": "html",
+    "category": "syntax",
+    "difficulty": "hard",
+    "codeTemplate": "<___blank1___ id=\"card-template\">\n  <style>\n    .card { border: 1px solid #ccc; padding: 1rem; }\n  </style>\n  \n  <div class=\"card\">\n    <h3><___blank2___ name=\"title\">Default Title</slot></h3>\n    <p><slot name=\"___blank3___\">Default content</slot></p>\n  </div>\n</template>\n\n<script>\n  class CardComponent extends ___blank4___ {\n    constructor() {\n      super();\n      const template = document.getElementById('card-template');\n      const shadowRoot = this.___blank5___({mode: 'open'});\n      shadowRoot.appendChild(template.content.cloneNode(true));\n    }\n  }\n</script>",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": [
+          "template"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b75"
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [
+          "slot"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b76"
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": [
+          "content"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b77"
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": [
+          "HTMLElement"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b78"
+      },
+      {
+        "id": "blank5",
+        "correctAnswers": [
+          "attachShadow"
+        ],
+        "caseSensitive": false,
+        "points": 1,
+        "_id": "68c9fc06c8ca723ad30b2b79"
+      }
+    ]
+  }
+]

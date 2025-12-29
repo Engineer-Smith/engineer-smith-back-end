@@ -1,0 +1,582 @@
+[
+  {
+    "title": "Functional Component Definition",
+    "description": "What is the correct way to define a functional component in React?",
+    "type": "multipleChoice",
+    "language": "react",
+    "category": "syntax",
+    "options": [
+      "function App() { return <div>Hello</div>; }",
+      "const App = () => { return <div>Hello</div>; }",
+      "class App extends React.Component { render() { return <div>Hello</div>; } }",
+      "Both A and B are correct"
+    ],
+    "correctAnswer": 3,
+    "difficulty": "easy",
+    "tags": ["components", "jsx", "function-components"],
+    "status": "active"
+  },
+  {
+    "title": "CSS Class Attribute in JSX",
+    "description": "In JSX, what attribute should you use instead of the HTML 'class' attribute?",
+    "type": "multipleChoice",
+    "language": "react", 
+    "category": "syntax",
+    "options": [
+      "class",
+      "className",
+      "cssClass",
+      "style"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "tags": ["jsx", "attributes"],
+    "status": "active"
+  },
+  {
+    "title": "State Hook Declaration",
+    "description": "Complete the code to declare state for a counter starting at 0: const [count, _____] = useState(0);",
+    "type": "fillInTheBlank",
+    "language": "react",
+    "category": "syntax",
+    "codeTemplate": "import React, { useState } from 'react';\n\nfunction Counter() {\n  const [count, {{blank1}}] = useState(0);\n  \n  return (\n    <div>\n      <p>Count: {count}</p>\n      <button onClick={() => {{blank2}}(count + 1)}>Increment</button>\n    </div>\n  );\n}",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": ["setCount"],
+        "caseSensitive": true,
+        "hint": "The naming convention is 'set' + state variable name",
+        "points": 1
+      },
+      {
+        "id": "blank2", 
+        "correctAnswers": ["setCount"],
+        "caseSensitive": true,
+        "hint": "Use the setter function you declared",
+        "points": 1
+      }
+    ],
+    "difficulty": "easy",
+    "tags": ["useState", "hooks", "state-management"],
+    "status": "active"
+  },
+  {
+    "title": "Side Effects in Components",
+    "description": "useEffect is primarily used for managing side effects in React components.",
+    "type": "trueFalse",
+    "language": "react",
+    "category": "syntax",
+    "options": ["True", "False"],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "tags": ["useEffect", "hooks", "side-effects"],
+    "status": "active"
+  },
+  {
+    "title": "Effect Dependencies",
+    "description": "What happens when you pass an empty dependency array [] to useEffect?",
+    "type": "multipleChoice",
+    "language": "react",
+    "category": "syntax",
+    "options": [
+      "The effect runs on every render",
+      "The effect runs only once after the initial render",
+      "The effect never runs",
+      "The effect only runs when props change"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "tags": ["useEffect", "dependency-array", "lifecycle"],
+    "status": "active"
+  },
+  {
+    "title": "Component Data Passing",
+    "description": "Complete the code to pass a name prop to the Greeting component:",
+    "type": "fillInTheBlank",
+    "language": "react",
+    "category": "ui",
+    "codeTemplate": "function App() {\n  const userName = \"Alice\";\n  \n  return (\n    <div>\n      <{{blank1}} {{blank2}}={userName} />\n    </div>\n  );\n}\n\nfunction Greeting({ name }) {\n  return <h1>Hello, {name}!</h1>;\n}",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": ["Greeting"],
+        "caseSensitive": true,
+        "hint": "The component name",
+        "points": 1
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": ["name"],
+        "caseSensitive": true,
+        "hint": "The prop name that matches the parameter",
+        "points": 1
+      }
+    ],
+    "difficulty": "easy",
+    "tags": ["props", "components"],
+    "status": "active"
+  },
+  {
+    "title": "React Event Handling",
+    "description": "In React, you handle click events using addEventListener method.",
+    "type": "trueFalse",
+    "language": "react",
+    "category": "ui",
+    "options": ["True", "False"],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "tags": ["events", "onclick"],
+    "status": "active"
+  },
+  {
+    "title": "Input Control Patterns",
+    "description": "What makes an input 'controlled' in React?",
+    "type": "multipleChoice",
+    "language": "react",
+    "category": "ui",
+    "options": [
+      "The input has an id attribute",
+      "The input's value is controlled by React state",
+      "The input has a name attribute",
+      "The input is inside a form element"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "tags": ["forms", "controlled-inputs", "state"],
+    "status": "active"
+  },
+  {
+    "title": "Form Input Events",
+    "description": "Complete the onChange handler for a controlled input:",
+    "type": "fillInTheBlank",
+    "language": "react",
+    "category": "ui",
+    "codeTemplate": "function Form() {\n  const [inputValue, setInputValue] = useState(\"\");\n  \n  function handleChange({{blank1}}) {\n    setInputValue({{blank2}}.{{blank3}}.{{blank4}});\n  }\n  \n  return (\n    <input \n      type=\"text\" \n      value={inputValue} \n      onChange={handleChange}\n    />\n  );\n}",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": ["event", "e"],
+        "caseSensitive": false,
+        "hint": "The parameter name for the event object",
+        "points": 1
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": ["event", "e"],
+        "caseSensitive": false,
+        "hint": "The event object",
+        "points": 1
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": ["target"],
+        "caseSensitive": true,
+        "hint": "Property that refers to the DOM element",
+        "points": 1
+      },
+      {
+        "id": "blank4",
+        "correctAnswers": ["value"],
+        "caseSensitive": true,
+        "hint": "Property that contains the input's current value",
+        "points": 1
+      }
+    ],
+    "difficulty": "medium",
+    "tags": ["onChange", "events", "controlled-inputs"],
+    "status": "active"
+  },
+  {
+    "title": "Module Export Syntax",
+    "description": "What is the correct way to export a React component as the default export?",
+    "type": "multipleChoice",
+    "language": "react",
+    "category": "syntax",
+    "options": [
+      "export { Greeting };",
+      "export default Greeting;",
+      "module.exports = Greeting;",
+      "export Greeting as default;"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "tags": ["import-export", "modules"],
+    "status": "active"
+  },
+  {
+    "title": "Dynamic List Rendering",
+    "description": "Complete the code to render a list of users:",
+    "type": "fillInTheBlank",
+    "language": "react",
+    "category": "ui",
+    "codeTemplate": "function UserList() {\n  const users = [\n    { id: 1, name: \"Alice\" },\n    { id: 2, name: \"Bob\" }\n  ];\n  \n  return (\n    <ul>\n      {users.{{blank1}}((user) => (\n        <li {{blank2}}={user.id}>{user.name}</li>\n      ))}\n    </ul>\n  );\n}",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": ["map"],
+        "caseSensitive": true,
+        "hint": "Array method for transforming elements",
+        "points": 1
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": ["key"],
+        "caseSensitive": true,
+        "hint": "Required prop for list items in React",
+        "points": 1
+      }
+    ],
+    "difficulty": "medium",
+    "tags": ["arrays", "map", "keys", "lists"],
+    "status": "active"
+  },
+  {
+    "title": "Programmatic Navigation",
+    "description": "Which React Router hook is used to navigate programmatically?",
+    "type": "multipleChoice",
+    "language": "react",
+    "category": "syntax",
+    "options": [
+      "useParams",
+      "useNavigate", 
+      "useLocation",
+      "useRoute"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "tags": ["react-router", "navigation", "hooks"],
+    "status": "active"
+  },
+  {
+    "title": "Dynamic Route Parameters",
+    "description": "Complete the code to access the postId from the URL '/posts/123':",
+    "type": "fillInTheBlank",
+    "language": "react",
+    "category": "syntax",
+    "codeTemplate": "import { {{blank1}} } from \"react-router-dom\";\n\nfunction PostDetail() {\n  const { {{blank2}} } = {{blank3}}();\n  \n  return (\n    <div>\n      <h1>Post {postId}</h1>\n    </div>\n  );\n}",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": ["useParams"],
+        "caseSensitive": true,
+        "hint": "Hook for accessing URL parameters",
+        "points": 1
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": ["postId"],
+        "caseSensitive": true,
+        "hint": "The parameter name from the URL",
+        "points": 1
+      },
+      {
+        "id": "blank3",
+        "correctAnswers": ["useParams"],
+        "caseSensitive": true,
+        "hint": "The hook function call",
+        "points": 1
+      }
+    ],
+    "difficulty": "medium",
+    "tags": ["useParams", "react-router", "url-parameters"],
+    "status": "active"
+  },
+  {
+    "title": "State Management Patterns",
+    "description": "React Context is primarily used to solve which problem?",
+    "type": "multipleChoice",
+    "language": "react",
+    "category": "ui",
+    "options": [
+      "Component styling",
+      "Prop drilling",
+      "State mutations",
+      "Event handling"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "tags": ["context", "prop-drilling", "state-management"],
+    "status": "active"
+  },
+  {
+    "title": "Effect Cleanup Functions",
+    "description": "useEffect can return a cleanup function to prevent memory leaks.",
+    "type": "trueFalse",
+    "language": "react",
+    "category": "syntax", 
+    "options": ["True", "False"],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "tags": ["useEffect", "cleanup", "memory-leaks"],
+    "status": "active"
+  },
+  {
+    "title": "Array Processing Methods",
+    "description": "Write a function that filters out completed tasks:",
+    "type": "codeChallenge",
+    "language": "javascript",
+    "category": "logic",
+    "codeConfig": {
+      "runtime": "node",
+      "entryFunction": "filterIncompleteTasks",
+      "timeoutMs": 3000,
+      "allowPreview": true
+    },
+    "testCases": [
+      {
+        "name": "Filter incomplete tasks",
+        "args": [[
+          { "id": 1, "title": "Study React", "completed": false },
+          { "id": 2, "title": "Buy Groceries", "completed": true },
+          { "id": 3, "title": "Call Dentist", "completed": false }
+        ]],
+        "expected": [
+          { "id": 1, "title": "Study React", "completed": false },
+          { "id": 3, "title": "Call Dentist", "completed": false }
+        ],
+        "hidden": false
+      },
+      {
+        "name": "All tasks completed",
+        "args": [[
+          { "id": 1, "title": "Task 1", "completed": true },
+          { "id": 2, "title": "Task 2", "completed": true }
+        ]],
+        "expected": [],
+        "hidden": false
+      },
+      {
+        "name": "No tasks completed",
+        "args": [[
+          { "id": 1, "title": "Task 1", "completed": false },
+          { "id": 2, "title": "Task 2", "completed": false }
+        ]],
+        "expected": [
+          { "id": 1, "title": "Task 1", "completed": false },
+          { "id": 2, "title": "Task 2", "completed": false }
+        ],
+        "hidden": false
+      }
+    ],
+    "difficulty": "medium",
+    "tags": ["arrays", "filter", "objects"],
+    "status": "active"
+  },
+  {
+    "title": "Data Transformation",
+    "description": "Write a function that transforms an array of users to include only their names:",
+    "type": "codeChallenge", 
+    "language": "javascript",
+    "category": "logic",
+    "codeConfig": {
+      "runtime": "node",
+      "entryFunction": "getUserNames",
+      "timeoutMs": 3000,
+      "allowPreview": true
+    },
+    "testCases": [
+      {
+        "name": "Extract user names",
+        "args": [[
+          { "id": 1, "name": "Alice", "age": 25 },
+          { "id": 2, "name": "Bob", "age": 30 },
+          { "id": 3, "name": "Charlie", "age": 35 }
+        ]],
+        "expected": ["Alice", "Bob", "Charlie"],
+        "hidden": false
+      },
+      {
+        "name": "Empty array",
+        "args": [[]],
+        "expected": [],
+        "hidden": false
+      },
+      {
+        "name": "Single user",
+        "args": [[{ "id": 1, "name": "John", "age": 28 }]],
+        "expected": ["John"],
+        "hidden": false
+      }
+    ],
+    "difficulty": "easy",
+    "tags": ["arrays", "map", "objects"],
+    "status": "active"
+  },
+  {
+    "title": "Object Property Extraction",
+    "description": "Complete the destructuring assignment to extract name and age:",
+    "type": "fillInTheBlank",
+    "language": "javascript",
+    "category": "syntax",
+    "codeTemplate": "const user = { name: \"Alice\", age: 25, location: \"NYC\" };\n\n// Destructure name and age\nconst { {{blank1}}, {{blank2}} } = user;\n\nconsole.log(name); // \"Alice\"\nconsole.log(age);  // 25",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": ["name"],
+        "caseSensitive": true,
+        "hint": "First property to extract",
+        "points": 1
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": ["age"],
+        "caseSensitive": true,
+        "hint": "Second property to extract",
+        "points": 1
+      }
+    ],
+    "difficulty": "easy",
+    "tags": ["destructuring", "es6", "objects"],
+    "status": "active"
+  },
+  {
+    "title": "JavaScript Arrow Functions",
+    "description": "An arrow function automatically binds the 'this' context.",
+    "type": "trueFalse",
+    "language": "javascript",
+    "category": "syntax",
+    "options": ["True", "False"],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "tags": ["arrow-functions", "this-binding", "es6"],
+    "status": "active"
+  },
+  {
+    "title": "Event Handling Debug",
+    "description": "Fix the bug in this React component where the button click doesn't update the counter:",
+    "type": "codeDebugging",
+    "language": "javascript",
+    "category": "logic",
+    "buggyCode": "import React, { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  \n  function handleClick() {\n    count = count + 1; // Bug: direct mutation\n  }\n  \n  return (\n    <div>\n      <p>Count: {count}</p>\n      <button onClick={handleClick}>Increment</button>\n    </div>\n  );\n}\n\nexport default Counter;",
+    "solutionCode": "import React, { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  \n  function handleClick() {\n    setCount(count + 1); // Fixed: use state setter\n  }\n  \n  return (\n    <div>\n      <p>Count: {count}</p>\n      <button onClick={handleClick}>Increment</button>\n    </div>\n  );\n}\n\nexport default Counter;",
+    "codeConfig": {
+      "runtime": "node",
+      "entryFunction": "Counter",
+      "timeoutMs": 3000,
+      "allowPreview": true
+    },
+    "testCases": [
+      {
+        "name": "Component renders without errors",
+        "args": [],
+        "expected": "function",
+        "hidden": false
+      }
+    ],
+    "difficulty": "medium",
+    "tags": ["debugging", "state-mutation", "react-hooks"],
+    "status": "active"
+  },
+  {
+    "title": "Form Submission Handling",
+    "description": "What should you call in a form submit handler to prevent the default browser behavior?",
+    "type": "multipleChoice",
+    "language": "react",
+    "category": "ui",
+    "options": [
+      "event.stopPropagation()",
+      "event.preventDefault()",
+      "event.stopDefault()",
+      "event.cancelDefault()"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "easy",
+    "tags": ["forms", "events", "preventDefault"],
+    "status": "active"
+  },
+  {
+    "title": "List Item Requirements",
+    "description": "Why is the 'key' prop important when rendering lists in React?",
+    "type": "multipleChoice",
+    "language": "react",
+    "category": "ui",
+    "options": [
+      "It's required by the JSX syntax",
+      "It helps React identify which items have changed",
+      "It improves the styling of list items",
+      "It prevents memory leaks"
+    ],
+    "correctAnswer": 1,
+    "difficulty": "medium",
+    "tags": ["keys", "lists", "reconciliation"],
+    "status": "active"
+  },
+  {
+    "title": "Component Data Properties",
+    "description": "Props in React components are immutable and cannot be changed by the component itself.",
+    "type": "trueFalse",
+    "language": "react",
+    "category": "ui",
+    "options": ["True", "False"],
+    "correctAnswer": 0,
+    "difficulty": "easy",
+    "tags": ["props", "immutability", "component-data"],
+    "status": "active"
+  },
+  {
+    "title": "Dynamic Content Display",
+    "description": "Complete the conditional rendering to show different content based on user login status:",
+    "type": "fillInTheBlank",
+    "language": "react",
+    "category": "ui",
+    "codeTemplate": "function App() {\n  const [isLoggedIn, setIsLoggedIn] = useState(false);\n  \n  return (\n    <div>\n      {isLoggedIn {{blank1}} (\n        <h1>Welcome back!</h1>\n      ) {{blank2}} (\n        <h1>Please log in</h1>\n      )}\n    </div>\n  );\n}",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": ["?"],
+        "caseSensitive": true,
+        "hint": "Ternary operator for condition",
+        "points": 1
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": [":"],
+        "caseSensitive": true,
+        "hint": "Ternary operator for else case",
+        "points": 1
+      }
+    ],
+    "difficulty": "medium",
+    "tags": ["conditional-rendering", "ternary-operator"],
+    "status": "active"
+  },
+  {
+    "title": "Component Function Restrictions",
+    "description": "React Hooks can only be called at the top level of functional components or custom hooks.",
+    "type": "trueFalse",
+    "language": "react",
+    "category": "syntax",
+    "options": ["True", "False"],
+    "correctAnswer": 0,
+    "difficulty": "medium",
+    "tags": ["hooks", "rules-of-hooks"],
+    "status": "active"
+  },
+  {
+    "title": "Safe State Updates",
+    "description": "Complete the code to safely increment the counter using the previous state:",
+    "type": "fillInTheBlank",
+    "language": "react",
+    "category": "syntax",
+    "codeTemplate": "function Counter() {\n  const [count, setCount] = useState(0);\n  \n  function increment() {\n    setCount({{blank1}} => {{blank2}} + 1);\n  }\n  \n  return (\n    <button onClick={increment}>\n      Count: {count}\n    </button>\n  );\n}",
+    "blanks": [
+      {
+        "id": "blank1",
+        "correctAnswers": ["prevCount", "prev", "previousCount", "prevState"],
+        "caseSensitive": false,
+        "hint": "Parameter name for the previous state value",
+        "points": 1
+      },
+      {
+        "id": "blank2",
+        "correctAnswers": ["prevCount", "prev", "previousCount", "prevState"],
+        "caseSensitive": false,
+        "hint": "Use the parameter to access previous value",
+        "points": 1
+      }
+    ],
+    "difficulty": "medium",
+    "tags": ["state-updates", "functional-updates", "prevState"],
+    "status": "active"
+  }
+]

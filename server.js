@@ -50,11 +50,8 @@ app.use(helmet({
 // CORS with enhanced cookie support - FIXED to use environment variables
 app.use(cors({
   origin: function (origin, callback) {
-    console.log(`Express CORS check - incoming origin: "${origin}"`);
-
     // Allow requests with no origin (mobile apps, Postman, etc.)
     if (!origin) {
-      console.log('No origin provided, allowing request');
       return callback(null, true);
     }
 
@@ -84,14 +81,10 @@ app.use(cors({
     // Remove duplicates
     const uniqueAllowedOrigins = [...new Set(allowedOrigins)];
 
-    console.log('Express allowed origins:', uniqueAllowedOrigins);
-
     // Simple direct comparison since we now include both versions
     if (uniqueAllowedOrigins.includes(origin)) {
-      console.log('✅ Express origin allowed (direct match)');
       callback(null, true);
     } else {
-      console.log('❌ Express origin blocked');
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -207,6 +200,7 @@ const adminOverrideRoutes = require('./routes/adminOverrides');
 const studentRoutes = require('./routes/student');
 const notificationRoutes = require('./routes/notifications');
 const manualScoringRoutes = require('./routes/manualScoring');
+const codeChallengesRoutes = require('./routes/codeChallenges');
 
 // Mount routes
 app.use('/superadmin', superadminRoutes);
@@ -223,6 +217,7 @@ app.use('/api/student-overrides', adminOverrideRoutes);
 app.use('/api/student', studentRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/manual-scoring', manualScoringRoutes);
+app.use('/api/code-challenges', codeChallengesRoutes);
 
 // Health check endpoint
 app.get('/', (req, res) => {

@@ -13,27 +13,35 @@ const REFRESH_TOKEN_EXPIRY = process.env.REFRESH_TOKEN_EXPIRY || '7d';
 
 // Helper function to set auth cookies
 const setAuthCookies = (res, accessToken, refreshToken, csrfToken = null) => {
+  // Determine if we're in production
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  // For local development, use different settings
+  const cookieSettings = {
+    httpOnly: true,
+    secure: isProduction, // Only require HTTPS in production
+    sameSite: 'strict',
+    path: '/', // Explicitly set path
+  };
+
   // Set access token cookie
   res.cookie('accessToken', accessToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none', // Changed from 'strict' to 'none'
+    ...cookieSettings,
     maxAge: 15 * 60 * 1000, // 15 minutes
   });
 
   // Set refresh token cookie
   res.cookie('refreshToken', refreshToken, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'none', // Changed from 'strict' to 'none'
+    ...cookieSettings,
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
   });
 
   // Set CSRF token cookie (not httpOnly so frontend can read it)
   if (csrfToken) {
     res.cookie('csrfToken', csrfToken, {
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'none', // Changed from 'strict' to 'none'
+      secure: isProduction,
+      sameSite: 'strict',
+      path: '/',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     });
   }
@@ -607,6 +615,60 @@ const testSSOToken = async (req, res, next) => {
   }
 };
 
+// Change password (authenticated)
+const changePassword = async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    // Validate input
+    if (!currentPassword || !newPassword) {
+      throw createError(400, 'Current password and new password are required');
+    }
+
+    if (newPassword.length < 6) {
+      throw createError(400, 'New password must be at least 6 characters long');
+    }
+
+    // Get the current user
+    const user = await User.findById(req.user.userId);
+    if (!user) {
+      throw createError(404, 'User not found');
+    }
+
+    // Check if user uses SSO
+    if (user.isSSO) {
+      throw createError(400, 'SSO users cannot change password. Please contact your SSO provider.');
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.hashedPassword);
+    if (!isCurrentPasswordValid) {
+      throw createError(401, 'Current password is incorrect');
+    }
+
+    // Check if new password is different from current
+    const isSamePassword = await bcrypt.compare(newPassword, user.hashedPassword);
+    if (isSamePassword) {
+      throw createError(400, 'New password must be different from current password');
+    }
+
+    // Hash new password
+    const newHashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+
+    // Update password
+    user.hashedPassword = newHashedPassword;
+    user.updatedAt = new Date();
+    await user.save();
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   register,
   login,
@@ -618,5 +680,6 @@ module.exports = {
   getCurrentUser,
   validateInviteCode,
   getSocketToken,
-  testSSOToken
+  testSSOToken,
+  changePassword
 };
