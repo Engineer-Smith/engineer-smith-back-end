@@ -12,7 +12,8 @@ const {
   getCurrentUser,
   validateInviteCode,
   testSSOToken,
-  changePassword
+  changePassword,
+  getSocketToken
 } = require('../controllers/authController');
 const { verifyToken, csrfProtection } = require('../middleware/auth');
 
@@ -38,6 +39,7 @@ router.get('/callback', ssoCallback);      // OAuth2 SSO callback
 // Protected routes
 router.post('/logout', verifyToken, csrfProtection, logout);
 router.get('/me', verifyToken, getCurrentUser);
+router.get('/socket-token', verifyToken, getSocketToken);  // Add this line
 router.post('/change-password', verifyToken, csrfProtection, changePassword);
 
 // Health check for auth status
