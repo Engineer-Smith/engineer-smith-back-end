@@ -577,11 +577,12 @@ const validateInviteCode = async (req, res, next) => {
 
 const getSocketToken = async (req, res, next) => {
   try {
-    // User is already authenticated via middleware
     const socketToken = jwt.sign(
       {
         userId: req.user.userId,
         loginId: req.user.loginId,
+        organizationId: req.user.organizationId,
+        role: req.user.role,
         type: 'socket'
       },
       process.env.JWT_SECRET,
