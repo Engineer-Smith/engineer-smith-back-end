@@ -21,6 +21,7 @@ import { AdminModule } from './admin';
 import { CodeChallengeModule } from './code-challenge';
 import { NotificationModule } from './notification';
 import { GatewayModule } from './gateway/gateway.module';
+import { TagsModule } from './tags/tags.module';
 
 @Module({
   imports: [
@@ -87,6 +88,7 @@ import { GatewayModule } from './gateway/gateway.module';
     OrganizationModule,
     AdminModule,
     CodeChallengeModule,
+    TagsModule,
     NotificationModule,
     GatewayModule, // WebSocket gateway for real-time features
   ],

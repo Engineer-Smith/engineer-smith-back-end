@@ -96,7 +96,8 @@ export class QuestionService {
       pagination: {
         skip: filters.skip || 0,
         limit: filters.limit || 10,
-        total: formattedQuestions.length,
+        total: totalCount ?? formattedQuestions.length,
+        returned: formattedQuestions.length,
       },
     };
 
@@ -290,14 +291,6 @@ export class QuestionService {
     if (filters.isGlobal !== undefined) {
       query.isGlobal = filters.isGlobal;
     }
-    if (filters.language) {
-      if (filters.language.includes(',')) {
-        const languages = filters.language.split(',').map((lang) => lang.trim());
-        query.language = { $in: languages };
-      } else {
-        query.language = filters.language;
-      }
-    }
     if (filters.category) {
       query.category = filters.category;
     }
@@ -307,11 +300,33 @@ export class QuestionService {
     if (filters.type) {
       query.type = filters.type;
     }
-    if (filters.tag) {
-      query.tags = { $in: [filters.tag] };
-    }
     if (filters.status) {
       query.status = filters.status;
+    }
+
+    // Language and tag use OR logic (match language OR has tag)
+    if (filters.language && filters.tag) {
+      // Both provided - use OR
+      const languageCondition = filters.language.includes(',')
+        ? { language: { $in: filters.language.split(',').map((l) => l.trim()) } }
+        : { language: filters.language };
+      const tagCondition = { tags: { $in: [filters.tag] } };
+
+      // Need to combine with existing $or using $and
+      const visibilityOr = query.$or;
+      delete query.$or;
+      query.$and = [{ $or: visibilityOr }, { $or: [languageCondition, tagCondition] }];
+    } else if (filters.language) {
+      // Only language
+      if (filters.language.includes(',')) {
+        const languages = filters.language.split(',').map((lang) => lang.trim());
+        query.language = { $in: languages };
+      } else {
+        query.language = filters.language;
+      }
+    } else if (filters.tag) {
+      // Only tag
+      query.tags = { $in: [filters.tag] };
     }
 
     return query;

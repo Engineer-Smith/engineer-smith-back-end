@@ -69,11 +69,11 @@ export class TestService {
       .findById(testId)
       .populate(
         'sections.questions.questionId',
-        'title description type language options testCases difficulty category codeConfig codeTemplate blanks buggyCode solutionCode',
+        'title description type language options testCases difficulty category codeConfig codeTemplate blanks dragOptions buggyCode solutionCode',
       )
       .populate(
         'questions.questionId',
-        'title description type language options testCases difficulty category codeConfig codeTemplate blanks buggyCode solutionCode',
+        'title description type language options testCases difficulty category codeConfig codeTemplate blanks dragOptions buggyCode solutionCode',
       );
 
     if (!test) {
@@ -203,7 +203,7 @@ export class TestService {
     const questions = await this.questionModel
       .find({ _id: { $in: questionIds } })
       .select(
-        'title description type language category options correctAnswer testCases codeConfig codeTemplate blanks buggyCode solutionCode difficulty tags createdAt updatedAt',
+        'title description type language category options correctAnswer testCases codeConfig codeTemplate blanks dragOptions buggyCode solutionCode difficulty tags createdAt updatedAt',
       );
 
     const questionMap = new Map(questions.map((q) => [q._id.toString(), q]));
@@ -240,7 +240,7 @@ export class TestService {
 
   private async validateTestAccess(test: TestDocument, user: RequestUser): Promise<void> {
     const isSuperOrgAdminOrInstructor =
-      user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
+      user.isSuperOrgAdmin || (user.organizationId && (user.role === 'admin' || user.role === 'instructor'));
 
     if (!isSuperOrgAdminOrInstructor) {
       if (test.isGlobal) {
@@ -258,7 +258,7 @@ export class TestService {
 
   private async validateTestUpdateAccess(test: TestDocument, user: RequestUser): Promise<void> {
     const isSuperOrgAdminOrInstructor =
-      user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
+      user.isSuperOrgAdmin || (user.organizationId && (user.role === 'admin' || user.role === 'instructor'));
 
     if (!isSuperOrgAdminOrInstructor) {
       throw new ForbiddenException('Only admins/instructors can modify tests');
@@ -285,7 +285,7 @@ export class TestService {
     user: RequestUser,
   ): Promise<void> {
     const isSuperOrgAdminOrInstructor =
-      user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
+      user.isSuperOrgAdmin || (user.organizationId && (user.role === 'admin' || user.role === 'instructor'));
 
     if (!isSuperOrgAdminOrInstructor) {
       if (test.isGlobal) {
@@ -321,7 +321,7 @@ export class TestService {
   private buildTestQuery(filters: TestFiltersDto, user: RequestUser): any {
     const { orgId, isGlobal, testType, language, tag, status } = filters;
     const isSuperOrgAdminOrInstructor =
-      user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
+      user.isSuperOrgAdmin || (user.organizationId && (user.role === 'admin' || user.role === 'instructor'));
 
     let query: any = {};
 

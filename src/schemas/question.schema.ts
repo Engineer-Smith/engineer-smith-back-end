@@ -9,6 +9,7 @@ export const QUESTION_TYPES = [
   'trueFalse',
   'codeChallenge',
   'fillInTheBlank',
+  'dragDropCloze',
   'codeDebugging',
 ] as const;
 
@@ -58,51 +59,51 @@ export const VALID_COMBINATIONS: Record<string, string[]> = {
 // Valid language+category+type combinations
 export const VALID_TYPE_COMBINATIONS: Record<string, Record<string, string[]>> = {
   html: {
-    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   css: {
-    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   react: {
-    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   flutter: {
-    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   reactNative: {
-    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   javascript: {
-    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze', 'codeChallenge', 'codeDebugging'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   typescript: {
-    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze', 'codeChallenge', 'codeDebugging'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   python: {
-    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze', 'codeChallenge', 'codeDebugging'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   sql: {
-    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze', 'codeChallenge'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   dart: {
-    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze', 'codeChallenge', 'codeDebugging'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   express: {
-    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'],
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    logic: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze', 'codeChallenge', 'codeDebugging'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   json: {
-    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
 };
 
@@ -198,7 +199,9 @@ export class Question {
   @Prop()
   codeTemplate?: string;
 
-  // Blanks configuration for fill-in-the-blank
+  // Blanks configuration for fill-in-the-blank and dragDropCloze
+  // For fillInTheBlank: correctAnswers contains acceptable text answers
+  // For dragDropCloze: correctAnswers contains the correct dragOptions.id
   @Prop({
     type: [
       {
@@ -216,6 +219,21 @@ export class Question {
     caseSensitive?: boolean;
     hint?: string;
     points?: number;
+  }>;
+
+  // Draggable options for dragDropCloze questions (includes distractors)
+  // Options are not reusable - once dragged to a blank, removed from pool
+  @Prop({
+    type: [
+      {
+        id: { type: String, required: true },
+        text: { type: String, required: true },
+      },
+    ],
+  })
+  dragOptions?: Array<{
+    id: string;
+    text: string;
   }>;
 
   // Buggy code for debugging questions
@@ -284,8 +302,8 @@ QuestionSchema.index({ language: 1, category: 1 });
 QuestionSchema.index({ type: 1, category: 1 });
 QuestionSchema.index({ language: 1, category: 1, type: 1 });
 
-// Pre-save hook to auto-set runtime
-QuestionSchema.pre('save', function (next: () => void) {
+// Pre-save hook to auto-set runtime (Mongoose 7+ style - no next callback)
+QuestionSchema.pre('save', function () {
   if (
     (this.type === 'codeChallenge' || this.type === 'codeDebugging') &&
     this.category === 'logic' &&
@@ -296,5 +314,4 @@ QuestionSchema.pre('save', function (next: () => void) {
     }
     this.codeConfig.runtime = LANGUAGE_RUNTIME_MAP[this.language] ?? 'node';
   }
-  next();
 });

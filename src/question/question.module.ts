@@ -14,6 +14,7 @@ import { GradingModule } from '../grading/grading.module';
 import { MultipleChoiceModule } from './multiple-choice';
 import { TrueFalseModule } from './true-false';
 import { FillInBlankModule } from './fill-in-blank';
+import { DragDropClozeModule } from './drag-drop-cloze';
 import { CodeChallengeModule } from './code-challenge';
 import { CodeDebuggingModule } from './code-debugging';
 
@@ -25,6 +26,7 @@ import { CodeDebuggingModule } from './code-debugging';
     forwardRef(() => MultipleChoiceModule),
     forwardRef(() => TrueFalseModule),
     forwardRef(() => FillInBlankModule),
+    forwardRef(() => DragDropClozeModule),
     forwardRef(() => CodeChallengeModule),
     forwardRef(() => CodeDebuggingModule),
   ],
@@ -44,6 +46,7 @@ import { CodeDebuggingModule } from './code-debugging';
     MultipleChoiceModule,
     TrueFalseModule,
     FillInBlankModule,
+    DragDropClozeModule,
     CodeChallengeModule,
     CodeDebuggingModule,
   ],

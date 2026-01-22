@@ -135,7 +135,7 @@ export class QuestionValidationService {
     }
 
     // Category validation for code-related questions
-    if (['codeChallenge', 'fillInTheBlank', 'codeDebugging'].includes(type)) {
+    if (['codeChallenge', 'fillInTheBlank', 'dragDropCloze', 'codeDebugging'].includes(type)) {
       if (!category) {
         throw new BadRequestException('Category is required for code-related questions');
       }
@@ -143,10 +143,10 @@ export class QuestionValidationService {
         throw new BadRequestException(`Invalid category. Must be one of: ${CATEGORIES.join(', ')}`);
       }
 
-      // UI questions must use fillInTheBlank
-      if (category === 'ui' && type !== 'fillInTheBlank') {
+      // UI questions must use fillInTheBlank or dragDropCloze
+      if (category === 'ui' && !['fillInTheBlank', 'dragDropCloze'].includes(type)) {
         throw new BadRequestException(
-          'UI questions must use fillInTheBlank type, not codeChallenge or codeDebugging',
+          'UI questions must use fillInTheBlank or dragDropCloze type, not codeChallenge or codeDebugging',
         );
       }
 
@@ -187,8 +187,8 @@ export class QuestionValidationService {
     }
 
     // Validate UI/Logic question type combinations
-    if (category === 'ui' && type && type !== 'fillInTheBlank') {
-      throw new BadRequestException('UI questions must use fillInTheBlank type');
+    if (category === 'ui' && type && !['fillInTheBlank', 'dragDropCloze'].includes(type)) {
+      throw new BadRequestException('UI questions must use fillInTheBlank or dragDropCloze type');
     }
 
     // Validate language-category combination for updates
@@ -278,6 +278,70 @@ export class QuestionValidationService {
           throw new BadRequestException(
             'Each blank must have an id and at least one correct answer',
           );
+        }
+      }
+    }
+
+    if (type === 'dragDropCloze') {
+      const dragOptions = (questionData as any).dragOptions;
+
+      // For updates, only validate fields that are provided
+      // For creates (via type-specific service), all fields are validated there
+      if (codeTemplate !== undefined && !codeTemplate) {
+        throw new BadRequestException('codeTemplate cannot be empty for dragDropCloze questions');
+      }
+
+      if (blanks !== undefined) {
+        if (!Array.isArray(blanks) || blanks.length === 0) {
+          throw new BadRequestException(
+            'At least one blank is required for dragDropCloze questions',
+          );
+        }
+
+        for (const blank of blanks) {
+          if (
+            !blank.id ||
+            !blank.correctAnswers ||
+            !Array.isArray(blank.correctAnswers) ||
+            blank.correctAnswers.length === 0
+          ) {
+            throw new BadRequestException(
+              'Each blank must have an id and at least one correct answer',
+            );
+          }
+        }
+      }
+
+      if (dragOptions !== undefined) {
+        if (!Array.isArray(dragOptions) || dragOptions.length === 0) {
+          throw new BadRequestException(
+            'At least one drag option is required for dragDropCloze questions',
+          );
+        }
+
+        // Validate drag options have id and text
+        const optionIds = new Set<string>();
+        for (const option of dragOptions) {
+          if (!option.id || !option.text) {
+            throw new BadRequestException('Each drag option must have an id and text');
+          }
+          if (optionIds.has(option.id)) {
+            throw new BadRequestException(`Duplicate drag option id: ${option.id}`);
+          }
+          optionIds.add(option.id);
+        }
+
+        // Validate blanks reference valid option ids (only if both are provided)
+        if (blanks) {
+          for (const blank of blanks) {
+            for (const correctId of blank.correctAnswers) {
+              if (!optionIds.has(correctId)) {
+                throw new BadRequestException(
+                  `Blank "${blank.id}": correctAnswer "${correctId}" does not match any drag option id`,
+                );
+              }
+            }
+          }
         }
       }
     }

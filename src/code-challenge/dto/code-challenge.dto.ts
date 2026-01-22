@@ -7,6 +7,7 @@ import {
   IsArray,
   IsEnum,
   IsMongoId,
+  IsDefined,
   Min,
   Max,
   MaxLength,
@@ -95,11 +96,33 @@ class TestCaseDto {
   @IsArray()
   args: any[];
 
+  @IsDefined()
   expected: any;
 
   @IsOptional()
   @IsBoolean()
   hidden?: boolean;
+}
+
+/**
+ * DTO for validating code without an existing challenge
+ */
+export class ValidateCodeDto {
+  @IsEnum(['javascript', 'python', 'dart', 'sql'])
+  language: Language;
+
+  @IsString()
+  solutionCode: string;
+
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TestCaseDto)
+  testCases: TestCaseDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LanguageCodeConfigDto)
+  codeConfig?: LanguageCodeConfigDto;
 }
 
 /**
@@ -245,6 +268,10 @@ export class RunCodeDto {
 
   @IsEnum(['javascript', 'python', 'dart', 'sql'])
   language: Language;
+
+  @IsOptional()
+  @IsBoolean()
+  hasTestedCode?: boolean;
 }
 
 /**
@@ -367,6 +394,10 @@ export class AddChallengeToTrackDto {
   @IsNumber()
   @Min(0)
   unlockAfter?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  skipValidation?: boolean;
 }
 
 /**
@@ -397,4 +428,33 @@ export class AdminChallengesQueryDto {
   @Min(1)
   @Max(100)
   limit?: number = 20;
+}
+
+/**
+ * DTO for bulk creating challenges
+ */
+export class BulkCreateChallengesDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateChallengeDto)
+  challenges: CreateChallengeDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  skipDuplicates?: boolean;
+
+  @IsOptional()
+  @IsEnum(['draft', 'active'])
+  defaultStatus?: 'draft' | 'active';
+
+  @IsOptional()
+  @IsMongoId()
+  addToTrackId?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  startingOrder?: number;
 }

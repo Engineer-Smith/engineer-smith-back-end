@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { AuthGuard } from '@nestjs/passport';
+import { firstValueFrom, isObservable } from 'rxjs';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
 @Injectable()
@@ -13,7 +14,7 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     super();
   }
 
-  canActivate(context: ExecutionContext) {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     // Check if route is marked as public
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -21,10 +22,26 @@ export class JwtAuthGuard extends AuthGuard('jwt') {
     ]);
 
     if (isPublic) {
+      // For public routes, still try to authenticate to populate request.user
+      // but don't fail if authentication fails
+      try {
+        const result = super.canActivate(context);
+        if (isObservable(result)) {
+          await firstValueFrom(result);
+        } else {
+          await result;
+        }
+      } catch {
+        // Ignore auth errors on public routes - user will be null
+      }
       return true;
     }
 
-    return super.canActivate(context);
+    const result = super.canActivate(context);
+    if (isObservable(result)) {
+      return firstValueFrom(result);
+    }
+    return result;
   }
 
   handleRequest(err: any, user: any, info: any, context: ExecutionContext) {

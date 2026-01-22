@@ -78,21 +78,69 @@ export class CodeChallengeService {
       throw new NotFoundException('Track not found');
     }
 
-    let userProgress: any = null;
+    let userTrackProgress: any = null;
+    let challengeProgressMap: Record<string, any> = {};
+
     if (user?.userId) {
-      userProgress = await this.trackProgressModel
+      const userId = new Types.ObjectId(user.userId);
+
+      // Fetch track-level progress
+      userTrackProgress = await this.trackProgressModel
         .findOne({
-          userId: new Types.ObjectId(user.userId),
+          userId,
           trackId: track._id,
         })
         .lean();
+
+      // Fetch per-challenge progress for all challenges in this track
+      // Look for track-specific progress OR global progress (trackId: null)
+      if ((track.challenges as any[])?.length > 0) {
+        const challengeIds = (track.challenges as any[])
+          .map((c) => c.challengeId?._id)
+          .filter(Boolean);
+
+        const challengeProgress = await this.progressModel.find({
+          userId,
+          challengeId: { $in: challengeIds },
+          $or: [{ trackId: track._id }, { trackId: null }],
+        } as any).lean();
+
+        // Prefer track-specific progress over global progress
+        challengeProgressMap = challengeProgress.reduce((map, progress) => {
+          const key = progress.challengeId.toString();
+          const existing = map[key];
+          // If no existing record, or this is track-specific and existing is global, use this one
+          if (!existing || (progress.trackId && !existing.trackId)) {
+            map[key] = progress;
+          }
+          return map;
+        }, {} as Record<string, any>);
+      }
     }
+
+    // Enrich each challenge with user progress and unlock status
+    const completedChallenges = userTrackProgress?.completedChallenges || 0;
+    const enrichedChallenges = (track.challenges as any[])?.map((trackChallenge) => {
+      const challengeId = trackChallenge.challengeId?._id?.toString();
+      // Explicitly use null (not undefined) so it appears in JSON response
+      const challengeUserProgress = challengeId
+        ? (challengeProgressMap[challengeId] ?? null)
+        : null;
+      const isUnlocked = completedChallenges >= (trackChallenge.unlockAfter || 0);
+
+      return {
+        ...trackChallenge,
+        userProgress: challengeUserProgress,
+        isUnlocked,
+      };
+    }) || [];
 
     return {
       success: true,
       track: {
         ...track,
-        userProgress,
+        challenges: enrichedChallenges,
+        userProgress: userTrackProgress,
       },
     };
   }
@@ -204,10 +252,10 @@ export class CodeChallengeService {
       recentSubmissions = submissions;
     }
 
-    // Only show non-hidden test cases
+    // Show all test cases (no hidden test cases in code challenges)
     const responseChallenge = {
       ...challenge,
-      testCases: (challenge.testCases as any[])?.filter((tc) => !tc.hidden) || [],
+      testCases: challenge.testCases || [],
       solutionCode: undefined,
       editorial: undefined,
     };
@@ -245,11 +293,11 @@ export class CodeChallengeService {
       throw new BadRequestException(`Language ${dto.language} not supported for this challenge`);
     }
 
-    // Get only sample test cases (non-hidden)
-    const sampleTestCases = (challenge.testCases as any[])?.filter((tc) => !tc.hidden) || [];
+    // Get all test cases (no hidden test cases in code challenges)
+    const testCases = (challenge.testCases as any[]) || [];
 
-    if (sampleTestCases.length === 0) {
-      throw new BadRequestException('No sample test cases available for testing');
+    if (testCases.length === 0) {
+      throw new BadRequestException('No test cases available for testing');
     }
 
     const codeConfig = (challenge.codeConfig as any)?.[dto.language];
@@ -263,14 +311,13 @@ export class CodeChallengeService {
         language: dto.language as any,
         runtime: codeConfig.runtime,
         entryFunction: codeConfig.entryFunction,
-        testCases: sampleTestCases,
+        testCases: testCases,
         timeoutMs: codeConfig.timeoutMs,
       });
 
       return {
         success: true,
         results: testResults,
-        note: 'These are sample test cases only. Submit to test against all test cases.',
       };
     } catch (error: any) {
       return {
@@ -278,7 +325,7 @@ export class CodeChallengeService {
         error: error.message,
         results: {
           overallPassed: false,
-          totalTests: sampleTestCases.length,
+          totalTests: testCases.length,
           totalTestsPassed: 0,
           testResults: [],
           executionError: error.message,
@@ -379,33 +426,17 @@ export class CodeChallengeService {
         testResults.overallPassed,
         (testResults as any).executionTime || 0,
         submission._id as Types.ObjectId,
+        testResults.overallPassed ? dto.code : undefined,
       );
       await userProgress.save();
 
       // Update challenge stats
       await this.updateChallengeStats(challenge, testResults.overallPassed);
 
-      // Hide hidden test case details in response
-      const publicResults = {
-        ...testResults,
-        testResults: testResults.testResults.map((result: any, index: number) => {
-          const testCase = (challenge.testCases as any[])[index];
-          if (testCase?.hidden) {
-            return {
-              ...result,
-              actualOutput: result.passed ? result.actualOutput : 'Hidden',
-              expectedOutput: 'Hidden',
-              testName: result.testName || `Hidden Test Case ${index + 1}`,
-            };
-          }
-          return result;
-        }),
-      };
-
       return {
         success: true,
         submissionId: submission._id,
-        results: publicResults,
+        results: testResults,
         userProgress: await this.progressModel.findById(userProgress._id),
       };
     } catch (error: any) {
@@ -635,6 +666,7 @@ export class CodeChallengeService {
     success: boolean,
     timeSpent: number,
     submissionId: Types.ObjectId,
+    code?: string,
   ): void {
     const solution = (progress.solutions as any)?.[language];
     if (!solution) return;
@@ -648,6 +680,10 @@ export class CodeChallengeService {
         solution.solvedAt = new Date();
       }
       solution.bestSubmissionId = submissionId;
+      // Save the passing solution code
+      if (code) {
+        solution.code = code;
+      }
       if (timeSpent && (!solution.bestTime || timeSpent < solution.bestTime)) {
         solution.bestTime = timeSpent;
       }
@@ -671,13 +707,28 @@ export class CodeChallengeService {
     challenge: CodeChallengeDocument,
     success: boolean,
   ): Promise<void> {
-    challenge.usageStats.totalAttempts = (challenge.usageStats.totalAttempts || 0) + 1;
+    // Use findByIdAndUpdate to avoid full document validation on legacy data
+    const updateOps: any = {
+      $inc: { 'usageStats.totalAttempts': 1 },
+    };
+
     if (success) {
-      challenge.usageStats.successfulSolutions =
-        (challenge.usageStats.successfulSolutions || 0) + 1;
+      updateOps.$inc['usageStats.successfulSolutions'] = 1;
     }
-    challenge.usageStats.successRate =
-      (challenge.usageStats.successfulSolutions / challenge.usageStats.totalAttempts) * 100;
-    await challenge.save();
+
+    // Update and get the new document to calculate success rate
+    const updated = await this.challengeModel.findByIdAndUpdate(
+      challenge._id,
+      updateOps,
+      { new: true },
+    );
+
+    if (updated && updated.usageStats.totalAttempts > 0) {
+      const successRate =
+        ((updated.usageStats.successfulSolutions || 0) / updated.usageStats.totalAttempts) * 100;
+      await this.challengeModel.findByIdAndUpdate(challenge._id, {
+        $set: { 'usageStats.successRate': successRate },
+      });
+    }
   }
 }

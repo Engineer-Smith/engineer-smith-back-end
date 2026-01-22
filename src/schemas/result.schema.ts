@@ -90,7 +90,7 @@ export class ResultQuestion {
 
   @Prop({
     type: String,
-    enum: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'codeChallenge', 'codeDebugging'],
+    enum: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze', 'codeChallenge', 'codeDebugging'],
     required: true,
   })
   type: string;

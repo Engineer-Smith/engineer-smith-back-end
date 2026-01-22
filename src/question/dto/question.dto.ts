@@ -66,6 +66,10 @@ export class TestCaseDto {
 }
 
 export class BlankDto {
+  @IsOptional()
+  @IsString()
+  _id?: string; // MongoDB subdocument id
+
   @IsString()
   id: string;
 
@@ -86,6 +90,18 @@ export class BlankDto {
   @IsNumber()
   @Min(0)
   points?: number;
+}
+
+export class DragOptionDto {
+  @IsOptional()
+  @IsString()
+  _id?: string; // MongoDB subdocument id
+
+  @IsString()
+  id: string;
+
+  @IsString()
+  text: string;
 }
 
 export class CodeConfigDto {
@@ -166,17 +182,25 @@ export class CreateQuestionDto {
   @Type(() => TestCaseDto)
   testCases?: TestCaseDto[];
 
-  // Fill in the Blank
-  @ValidateIf((o) => o.type === 'fillInTheBlank')
+  // Fill in the Blank / Drag Drop Cloze
+  @ValidateIf((o) => o.type === 'fillInTheBlank' || o.type === 'dragDropCloze')
   @IsString()
   codeTemplate?: string;
 
-  @ValidateIf((o) => o.type === 'fillInTheBlank')
+  @ValidateIf((o) => o.type === 'fillInTheBlank' || o.type === 'dragDropCloze')
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })
   @Type(() => BlankDto)
   blanks?: BlankDto[];
+
+  // Drag Drop Cloze specific
+  @ValidateIf((o) => o.type === 'dragDropCloze')
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => DragOptionDto)
+  dragOptions?: DragOptionDto[];
 
   // Code Debugging specific
   @ValidateIf((o) => o.type === 'codeDebugging')
@@ -259,6 +283,12 @@ export class UpdateQuestionDto {
   blanks?: BlankDto[];
 
   @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DragOptionDto)
+  dragOptions?: DragOptionDto[];
+
+  @IsOptional()
   @IsString()
   buggyCode?: string;
 
@@ -274,7 +304,7 @@ export class QuestionFiltersDto {
   organizationId?: string;
 
   @IsOptional()
-  @Transform(({ value }) => value === 'true')
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   isGlobal?: boolean;
 
@@ -315,7 +345,7 @@ export class QuestionFiltersDto {
   skip?: number = 0;
 
   @IsOptional()
-  @Transform(({ value }) => value === 'true')
+  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   includeTotalCount?: boolean;
 }

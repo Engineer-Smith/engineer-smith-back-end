@@ -35,10 +35,11 @@ export class TestValidationService {
     orgId: string | null = null,
   ): Promise<{ organizationId: string | null; isGlobal: boolean }> {
     // Validate user has permission to create tests
-    const isSuperOrgAdminOrInstructor =
-      user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
+    const isAdminOrInstructor =
+      user.isSuperOrgAdmin ||
+      (user.organizationId && (user.role === 'admin' || user.role === 'instructor'));
 
-    if (!isSuperOrgAdminOrInstructor) {
+    if (!isAdminOrInstructor) {
       throw new ForbiddenException('Only admins/instructors can create tests');
     }
 

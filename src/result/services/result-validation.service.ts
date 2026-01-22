@@ -3,7 +3,7 @@ import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/com
 import { ResultDocument } from '../../schemas/result.schema';
 import type { RequestUser } from '../../auth/interfaces/jwt-payload.interface';
 
-const VALID_QUESTION_TYPES = ['multipleChoice', 'trueFalse', 'codeChallenge', 'fillInTheBlank', 'codeDebugging'];
+const VALID_QUESTION_TYPES = ['multipleChoice', 'trueFalse', 'codeChallenge', 'fillInTheBlank', 'dragDropCloze', 'codeDebugging'];
 const VALID_DIFFICULTIES = ['easy', 'medium', 'hard'];
 const VALID_STATUSES = ['completed', 'expired', 'abandoned', 'failed'];
 const VALID_LANGUAGES = ['javascript', 'css', 'html', 'sql', 'dart', 'react', 'reactNative', 'flutter', 'express', 'python', 'typescript', 'json'];

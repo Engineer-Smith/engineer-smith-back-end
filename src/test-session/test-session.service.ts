@@ -650,6 +650,7 @@ export class TestSessionService {
           break;
 
         case 'fillInTheBlank':
+        case 'dragDropCloze':
           const fibResult = await this.gradeFillInBlank(question);
           isCorrect = fibResult.isCorrect;
           pointsEarned = fibResult.pointsEarned;

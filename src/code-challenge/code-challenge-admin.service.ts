@@ -21,6 +21,8 @@ import {
   AdminChallengesQueryDto,
   GetTracksQueryDto,
   RunCodeDto,
+  BulkCreateChallengesDto,
+  ValidateCodeDto,
 } from './dto/code-challenge.dto';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 
@@ -139,6 +141,74 @@ export class CodeChallengeAdminService {
       success: true,
       testResults,
     };
+  }
+
+  /**
+   * Validate code against test cases (for challenge creation/editing)
+   */
+  async validateCode(dto: ValidateCodeDto): Promise<any> {
+    if (!dto.testCases || dto.testCases.length === 0) {
+      throw new BadRequestException('At least one test case is required');
+    }
+
+    if (!dto.solutionCode || dto.solutionCode.trim() === '') {
+      throw new BadRequestException('Solution code is required');
+    }
+
+    // Map language to runtime (normalize node variants to 'node')
+    const runtimeMap: Record<string, string> = {
+      javascript: 'node',
+      python: 'python',
+      dart: 'dart',
+      sql: 'sql',
+    };
+    let runtime = dto.codeConfig?.runtime || runtimeMap[dto.language] || 'node';
+    // Normalize node variants (node18, node20, etc.) to 'node'
+    if (runtime.startsWith('node')) {
+      runtime = 'node';
+    }
+
+    try {
+      const testResults = await this.gradingService.runCodeTests({
+        code: dto.solutionCode,
+        language: dto.language as any,
+        runtime: runtime as any,
+        entryFunction: dto.codeConfig?.entryFunction,
+        testCases: dto.testCases as any,
+        timeoutMs: dto.codeConfig?.timeoutMs || 5000,
+      });
+
+      return {
+        success: true,
+        results: {
+          passed: testResults.overallPassed,
+          totalTests: testResults.totalTests,
+          passedTests: testResults.totalTestsPassed,
+          failedTests: testResults.totalTests - testResults.totalTestsPassed,
+          testResults: testResults.testResults.map((result: any, index: number) => ({
+            name: dto.testCases[index]?.name || `Test ${index + 1}`,
+            passed: result.passed,
+            expected: result.expectedOutput,
+            actual: result.actualOutput,
+            runtime: result.executionTime,
+            error: result.error,
+          })),
+        },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message,
+        results: {
+          passed: false,
+          totalTests: dto.testCases.length,
+          passedTests: 0,
+          failedTests: dto.testCases.length,
+          testResults: [],
+          executionError: error.message,
+        },
+      };
+    }
   }
 
   /**
@@ -300,7 +370,8 @@ export class CodeChallengeAdminService {
   }
 
   /**
-   * Add challenge to track
+   * Add challenge to track (validates solution first)
+   * Each challenge can only be assigned to ONE track per language
    */
   async addChallengeToTrack(
     language: string,
@@ -315,6 +386,45 @@ export class CodeChallengeAdminService {
     const challenge = await this.challengeModel.findById(dto.challengeId);
     if (!challenge) {
       throw new NotFoundException('Challenge not found');
+    }
+
+    // Check if challenge supports this language
+    if (!challenge.supportedLanguages.includes(track.language)) {
+      throw new BadRequestException(
+        `Challenge does not support ${track.language}. Supported: ${challenge.supportedLanguages.join(', ')}`,
+      );
+    }
+
+    // Check if this language slot is already claimed by another track
+    const currentAssignment = (challenge.trackAssignments as any)?.[track.language];
+    if (currentAssignment && currentAssignment.toString() !== track._id.toString()) {
+      // Get the track name for a better error message
+      const existingTrack = await this.trackModel.findById(currentAssignment).select('title slug language');
+      throw new BadRequestException({
+        message: `This challenge's ${track.language} slot is already assigned to another track`,
+        existingTrack: existingTrack ? {
+          title: existingTrack.title,
+          slug: existingTrack.slug,
+          language: existingTrack.language,
+        } : { id: currentAssignment.toString() },
+      });
+    }
+
+    // Validate solution before adding to track (unless skipped)
+    let validationResults: { valid: boolean; errors: string[]; details?: any } = {
+      valid: true,
+      errors: [],
+    };
+
+    if (!dto.skipValidation) {
+      validationResults = await this.validateChallengeForTrack(challenge, track.language);
+      if (!validationResults.valid) {
+        throw new BadRequestException({
+          message: 'Challenge solution validation failed. Use skipValidation=true to bypass.',
+          errors: validationResults.errors,
+          details: validationResults.details,
+        });
+      }
     }
 
     // Check if already in track
@@ -335,6 +445,12 @@ export class CodeChallengeAdminService {
         isOptional: dto.isOptional || false,
         unlockAfter: dto.unlockAfter || 0,
       });
+
+      // Claim this language slot on the challenge
+      await this.challengeModel.findByIdAndUpdate(
+        challenge._id,
+        { $set: { [`trackAssignments.${track.language}`]: track._id } },
+      );
     }
 
     await track.save();
@@ -342,11 +458,107 @@ export class CodeChallengeAdminService {
     return {
       success: true,
       message: 'Challenge added to track successfully',
+      validation: validationResults,
+      languageSlotClaimed: track.language,
     };
   }
 
   /**
-   * Remove challenge from track
+   * Validate a challenge's solution for a track's language
+   */
+  private async validateChallengeForTrack(
+    challenge: CodeChallengeDocument,
+    trackLanguage: string,
+  ): Promise<{ valid: boolean; errors: string[]; details?: any }> {
+    const errors: string[] = [];
+
+    // Check if challenge supports the track's language
+    if (!challenge.supportedLanguages.includes(trackLanguage)) {
+      errors.push(`Challenge does not support ${trackLanguage}`);
+      return { valid: false, errors };
+    }
+
+    // Check for solution code
+    const solutionCode = (challenge.solutionCode as any)?.[trackLanguage];
+    if (!solutionCode) {
+      errors.push(`No solution code for ${trackLanguage}`);
+      return { valid: false, errors };
+    }
+
+    // Check for test cases
+    if (!challenge.testCases || (challenge.testCases as any[]).length === 0) {
+      errors.push('Challenge has no test cases');
+      return { valid: false, errors };
+    }
+
+    // Check for code config
+    const codeConfig = (challenge.codeConfig as any)?.[trackLanguage];
+    if (!codeConfig?.entryFunction) {
+      errors.push(`No entry function configured for ${trackLanguage}`);
+      return { valid: false, errors };
+    }
+
+    // Run solution against test cases
+    const runtimeMap: Record<string, string> = {
+      javascript: 'node',
+      python: 'python',
+      dart: 'dart',
+      sql: 'sql',
+    };
+    let runtime = codeConfig.runtime || runtimeMap[trackLanguage] || 'node';
+    if (runtime.startsWith('node')) {
+      runtime = 'node';
+    }
+
+    try {
+      const testResults = await this.gradingService.runCodeTests({
+        code: solutionCode,
+        language: trackLanguage as any,
+        runtime: runtime as any,
+        entryFunction: codeConfig.entryFunction,
+        testCases: challenge.testCases as any,
+        timeoutMs: codeConfig.timeoutMs || 5000,
+      });
+
+      if (!testResults.overallPassed) {
+        const failedTests = testResults.testResults
+          .filter((t: any) => !t.passed)
+          .map((t: any) => ({
+            name: t.testName,
+            expected: t.expectedOutput,
+            actual: t.actualOutput,
+            error: t.error,
+          }));
+
+        errors.push(`Solution failed ${testResults.totalTests - testResults.totalTestsPassed}/${testResults.totalTests} tests`);
+
+        return {
+          valid: false,
+          errors,
+          details: {
+            passed: testResults.totalTestsPassed,
+            total: testResults.totalTests,
+            failedTests: failedTests.slice(0, 5), // Show first 5 failures
+          },
+        };
+      }
+
+      return {
+        valid: true,
+        errors: [],
+        details: {
+          passed: testResults.totalTestsPassed,
+          total: testResults.totalTests,
+        },
+      };
+    } catch (error: any) {
+      errors.push(`Solution execution error: ${error.message}`);
+      return { valid: false, errors };
+    }
+  }
+
+  /**
+   * Remove challenge from track (releases the language slot)
    */
   async removeChallengeFromTrack(
     language: string,
@@ -358,14 +570,35 @@ export class CodeChallengeAdminService {
       throw new NotFoundException('Track not found');
     }
 
+    // Check if challenge was in this track
+    const wasInTrack = (track.challenges as any[]).some(
+      (c) => c.challengeId.toString() === challengeId,
+    );
+
     track.challenges = (track.challenges as any[]).filter(
       (c) => c.challengeId.toString() !== challengeId,
     ) as any;
     await track.save();
 
+    // Release the language slot on the challenge
+    if (wasInTrack) {
+      const challenge = await this.challengeModel.findById(challengeId);
+      if (challenge && challenge.trackAssignments) {
+        const currentAssignment = (challenge.trackAssignments as any)[track.language];
+        // Only clear if this track owns the slot
+        if (currentAssignment && currentAssignment.toString() === track._id.toString()) {
+          await this.challengeModel.findByIdAndUpdate(
+            challengeId,
+            { $set: { [`trackAssignments.${track.language}`]: null } },
+          );
+        }
+      }
+    }
+
     return {
       success: true,
       message: 'Challenge removed from track successfully',
+      languageSlotReleased: wasInTrack ? track.language : null,
     };
   }
 
@@ -595,6 +828,234 @@ export class CodeChallengeAdminService {
         byLanguage: languageStats,
         byDifficulty: difficultyStats,
       },
+    };
+  }
+
+  /**
+   * Get challenges available for a specific language track
+   * Returns challenges that support the language AND have not been assigned to a track for that language
+   */
+  async getAvailableChallengesForLanguage(
+    language: string,
+    filters?: { difficulty?: string; status?: string; limit?: number; page?: number },
+  ): Promise<any> {
+    const query: any = {
+      supportedLanguages: language,
+      status: filters?.status || 'active',
+      // Language slot is either null, undefined, or doesn't exist
+      $or: [
+        { [`trackAssignments.${language}`]: null },
+        { [`trackAssignments.${language}`]: { $exists: false } },
+        { trackAssignments: { $exists: false } },
+      ],
+    };
+
+    if (filters?.difficulty) {
+      query.difficulty = filters.difficulty;
+    }
+
+    const skip = ((filters?.page || 1) - 1) * (filters?.limit || 50);
+
+    const [challenges, total] = await Promise.all([
+      this.challengeModel
+        .find(query)
+        .select('slug title difficulty supportedLanguages topics tags trackAssignments')
+        .sort({ difficulty: 1, title: 1 })
+        .skip(skip)
+        .limit(filters?.limit || 50)
+        .lean(),
+      this.challengeModel.countDocuments(query),
+    ]);
+
+    // Enrich with available slots info
+    const enrichedChallenges = challenges.map((challenge) => {
+      const availableSlots = challenge.supportedLanguages.filter((lang: string) => {
+        const assignment = (challenge.trackAssignments as any)?.[lang];
+        return !assignment;
+      });
+
+      return {
+        ...challenge,
+        availableLanguageSlots: availableSlots,
+        allSlotsClaimed: availableSlots.length === 0,
+      };
+    });
+
+    return {
+      success: true,
+      language,
+      challenges: enrichedChallenges,
+      pagination: {
+        page: filters?.page || 1,
+        limit: filters?.limit || 50,
+        total,
+        pages: Math.ceil(total / (filters?.limit || 50)),
+      },
+    };
+  }
+
+  /**
+   * Get track assignment status for all challenges
+   * Shows which language slots are claimed and by which tracks
+   */
+  async getChallengeTrackAssignments(
+    filters?: { language?: string; onlyAvailable?: boolean; limit?: number; page?: number },
+  ): Promise<any> {
+    const query: any = { status: 'active' };
+
+    if (filters?.language) {
+      query.supportedLanguages = filters.language;
+    }
+
+    if (filters?.onlyAvailable && filters?.language) {
+      query.$or = [
+        { [`trackAssignments.${filters.language}`]: null },
+        { [`trackAssignments.${filters.language}`]: { $exists: false } },
+        { trackAssignments: { $exists: false } },
+      ];
+    }
+
+    const skip = ((filters?.page || 1) - 1) * (filters?.limit || 50);
+
+    const [challenges, total] = await Promise.all([
+      this.challengeModel
+        .find(query)
+        .select('slug title supportedLanguages trackAssignments')
+        .sort({ title: 1 })
+        .skip(skip)
+        .limit(filters?.limit || 50)
+        .populate('trackAssignments.javascript', 'slug title language')
+        .populate('trackAssignments.python', 'slug title language')
+        .populate('trackAssignments.dart', 'slug title language')
+        .populate('trackAssignments.sql', 'slug title language')
+        .lean(),
+      this.challengeModel.countDocuments(query),
+    ]);
+
+    return {
+      success: true,
+      challenges,
+      pagination: {
+        page: filters?.page || 1,
+        limit: filters?.limit || 50,
+        total,
+        pages: Math.ceil(total / (filters?.limit || 50)),
+      },
+    };
+  }
+
+  // ==========================================
+  // BULK OPERATIONS
+  // ==========================================
+
+  /**
+   * Bulk create challenges
+   */
+  async bulkCreateChallenges(
+    dto: BulkCreateChallengesDto,
+    user: RequestUser,
+  ): Promise<any> {
+    const results = {
+      created: [] as any[],
+      skipped: [] as any[],
+      errors: [] as any[],
+    };
+
+    const userId = new Types.ObjectId(user.userId);
+    const status = dto.defaultStatus || 'draft';
+
+    // Get existing challenge titles/slugs to check for duplicates
+    const existingChallenges = await this.challengeModel
+      .find({}, { title: 1, slug: 1 })
+      .lean();
+    const existingTitles = new Set(
+      existingChallenges.map((c) => c.title.toLowerCase()),
+    );
+    const existingSlugs = new Set(existingChallenges.map((c) => c.slug));
+
+    // Process each challenge
+    for (let i = 0; i < dto.challenges.length; i++) {
+      const challengeData = dto.challenges[i];
+
+      try {
+        // Check for duplicate by title
+        if (existingTitles.has(challengeData.title.toLowerCase())) {
+          if (dto.skipDuplicates) {
+            results.skipped.push({
+              index: i,
+              title: challengeData.title,
+              reason: 'Duplicate title',
+            });
+            continue;
+          } else {
+            results.errors.push({
+              index: i,
+              title: challengeData.title,
+              error: 'Challenge with this title already exists',
+            });
+            continue;
+          }
+        }
+
+        // Create the challenge
+        const challenge = new this.challengeModel({
+          ...challengeData,
+          createdBy: userId,
+          status,
+        });
+
+        await challenge.save();
+
+        // Track the new title/slug
+        existingTitles.add(challengeData.title.toLowerCase());
+        existingSlugs.add(challenge.slug);
+
+        results.created.push({
+          index: i,
+          _id: challenge._id,
+          title: challenge.title,
+          slug: challenge.slug,
+        });
+      } catch (error: any) {
+        results.errors.push({
+          index: i,
+          title: challengeData.title,
+          error: error.message,
+        });
+      }
+    }
+
+    // Add to track if specified
+    if (dto.addToTrackId && results.created.length > 0) {
+      const track = await this.trackModel.findById(dto.addToTrackId);
+
+      if (track) {
+        const startingOrder = dto.startingOrder ?? (track.challenges as any[]).length;
+
+        for (let i = 0; i < results.created.length; i++) {
+          const created = results.created[i];
+          (track.challenges as any[]).push({
+            challengeId: new Types.ObjectId(created._id),
+            order: startingOrder + i,
+            isOptional: false,
+            unlockAfter: 0,
+          });
+        }
+
+        await track.save();
+      }
+    }
+
+    return {
+      success: true,
+      summary: {
+        total: dto.challenges.length,
+        created: results.created.length,
+        skipped: results.skipped.length,
+        errors: results.errors.length,
+        addedToTrack: dto.addToTrackId ? results.created.length : 0,
+      },
+      results,
     };
   }
 }

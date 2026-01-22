@@ -34,6 +34,7 @@ import { TrueFalseService, CreateTrueFalseDto, UpdateTrueFalseDto } from './true
 import { FillInBlankService, CreateFillInBlankDto, UpdateFillInBlankDto } from './fill-in-blank';
 import { CodeChallengeService, CreateCodeChallengeDto, UpdateCodeChallengeDto } from './code-challenge';
 import { CodeDebuggingService, CreateCodeDebuggingDto, UpdateCodeDebuggingDto } from './code-debugging';
+import { DragDropClozeService, CreateDragDropClozeDto, UpdateDragDropClozeDto } from './drag-drop-cloze';
 
 @Controller('questions')
 @UseGuards(JwtAuthGuard, OrganizationGuard)
@@ -47,6 +48,7 @@ export class QuestionController {
     private fillInBlankService: FillInBlankService,
     private codeChallengeService: CodeChallengeService,
     private codeDebuggingService: CodeDebuggingService,
+    private dragDropClozeService: DragDropClozeService,
   ) {}
 
   // ==========================================
@@ -138,6 +140,35 @@ export class QuestionController {
     @CurrentUser() user: RequestUser,
   ) {
     return this.fillInBlankService.update(questionId, data, user);
+  }
+
+  /**
+   * POST /questions/drag-drop-cloze
+   * Create a drag-and-drop cloze question
+   */
+  @Post('drag-drop-cloze')
+  @UseGuards(RolesGuard)
+  @AdminOrInstructor()
+  async createDragDropCloze(
+    @Body() data: CreateDragDropClozeDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.dragDropClozeService.create(data, user);
+  }
+
+  /**
+   * PATCH /questions/drag-drop-cloze/:questionId
+   * Update a drag-and-drop cloze question
+   */
+  @Patch('drag-drop-cloze/:questionId')
+  @UseGuards(RolesGuard)
+  @AdminOrInstructor()
+  async updateDragDropCloze(
+    @Param('questionId') questionId: string,
+    @Body() data: UpdateDragDropClozeDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.dragDropClozeService.update(questionId, data, user);
   }
 
   /**

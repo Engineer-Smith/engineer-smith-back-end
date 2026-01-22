@@ -70,6 +70,22 @@ export class QuestionFormatterService {
         }
         break;
 
+      case 'dragDropCloze':
+        baseResponse.codeTemplate = question.codeTemplate;
+        baseResponse.dragOptions = question.dragOptions;
+        if (includeAnswers) {
+          baseResponse.blanks = question.blanks;
+        } else {
+          // For students, include blanks but without correct answers
+          baseResponse.blanks = question.blanks?.map((blank: any) => ({
+            id: blank.id,
+            hint: blank.hint,
+            points: blank.points,
+            // Omit correctAnswers for students
+          }));
+        }
+        break;
+
       case 'codeChallenge':
       case 'codeDebugging':
         if (includeAnswers) {

@@ -464,7 +464,7 @@ export class QuestionHandlerService {
     // Filter question data for student view (hide answers)
     const safeQuestionData: any = {};
     const safeFields = ['title', 'description', 'type', 'language', 'difficulty', 'tags', 'category',
-                        'options', 'codeTemplate', 'blanks', 'buggyCode', 'codeConfig', 'testCases'];
+                        'options', 'codeTemplate', 'blanks', 'dragOptions', 'buggyCode', 'codeConfig', 'testCases'];
 
     for (const field of safeFields) {
       if (question.questionData?.[field] !== undefined) {
@@ -475,6 +475,17 @@ export class QuestionHandlerService {
     // Filter hidden test cases
     if (safeQuestionData.testCases && Array.isArray(safeQuestionData.testCases)) {
       safeQuestionData.testCases = safeQuestionData.testCases.filter((tc: any) => !tc?.hidden);
+    }
+
+    // Filter correctAnswers from blanks (students shouldn't see answers during test)
+    if (safeQuestionData.blanks && Array.isArray(safeQuestionData.blanks)) {
+      safeQuestionData.blanks = safeQuestionData.blanks.map((blank: any) => ({
+        id: blank.id,
+        hint: blank.hint,
+        points: blank.points,
+        caseSensitive: blank.caseSensitive,
+        // Omit correctAnswers
+      }));
     }
 
     return {

@@ -24,6 +24,8 @@ import {
   AdminChallengesQueryDto,
   GetTracksQueryDto,
   RunCodeDto,
+  BulkCreateChallengesDto,
+  ValidateCodeDto,
 } from './dto/code-challenge.dto';
 
 @Controller('code-challenges/admin')
@@ -49,12 +51,66 @@ export class CodeChallengeAdminController {
   }
 
   /**
+   * POST /code-challenges/admin/challenges/bulk
+   * Bulk create challenges
+   */
+  @Post('challenges/bulk')
+  @HttpCode(HttpStatus.CREATED)
+  async bulkCreateChallenges(
+    @Body() dto: BulkCreateChallengesDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.adminService.bulkCreateChallenges(dto, user);
+  }
+
+  /**
    * GET /code-challenges/admin/challenges
    * Get all challenges with full details
    */
   @Get('challenges')
   async getAllChallenges(@Query() filters: AdminChallengesQueryDto) {
     return this.adminService.getAllChallenges(filters);
+  }
+
+  /**
+   * GET /code-challenges/admin/challenges/available/:language
+   * Get challenges available for assignment to a track of the specified language
+   * NOTE: Must be defined BEFORE :challengeSlug route
+   */
+  @Get('challenges/available/:language')
+  async getAvailableChallenges(
+    @Param('language') language: string,
+    @Query('difficulty') difficulty?: string,
+    @Query('status') status?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getAvailableChallengesForLanguage(language, {
+      difficulty,
+      status,
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 50,
+    });
+  }
+
+  /**
+   * GET /code-challenges/admin/challenges/track-assignments
+   * Get track assignment status for all challenges
+   * NOTE: Must be defined BEFORE :challengeSlug route
+   */
+  @Get('challenges/track-assignments')
+  async getChallengeTrackAssignments(
+    @Query('language') language?: string,
+    @Query('onlyAvailable') onlyAvailable?: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.adminService.getChallengeTrackAssignments({
+      language,
+      onlyAvailable: onlyAvailable === 'true',
+      page: page ? parseInt(page, 10) : 1,
+      limit: limit ? parseInt(limit, 10) : 50,
+    });
   }
 
   /**
@@ -100,6 +156,16 @@ export class CodeChallengeAdminController {
     @Body() dto: RunCodeDto,
   ) {
     return this.adminService.testChallenge(challengeSlug, dto);
+  }
+
+  /**
+   * POST /code-challenges/admin/validate-code
+   * Validate solution code against test cases (for challenge creation/editing)
+   */
+  @Post('validate-code')
+  @HttpCode(HttpStatus.OK)
+  async validateCode(@Body() dto: ValidateCodeDto) {
+    return this.adminService.validateCode(dto);
   }
 
   // ==========================================

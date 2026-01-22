@@ -107,6 +107,23 @@ class UsageStats {
   successRate: number;
 }
 
+// Tracks which track has claimed each language slot for this challenge
+// A challenge can only be assigned to ONE track per language
+@Schema({ _id: false })
+class TrackAssignments {
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Track', default: null })
+  javascript?: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Track', default: null })
+  python?: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Track', default: null })
+  dart?: Types.ObjectId;
+
+  @Prop({ type: MongooseSchema.Types.ObjectId, ref: 'Track', default: null })
+  sql?: Types.ObjectId;
+}
+
 @Schema({
   timestamps: true,
   collection: 'codechallenges',
@@ -185,6 +202,11 @@ export class CodeChallenge {
 
   @Prop({ type: UsageStats, default: () => ({}) })
   usageStats: UsageStats;
+
+  // Tracks which track has claimed each language slot
+  // A challenge can only be used in ONE track per supported language
+  @Prop({ type: TrackAssignments, default: () => ({}) })
+  trackAssignments: TrackAssignments;
 
   // Virtual fields from timestamps
   createdAt?: Date;

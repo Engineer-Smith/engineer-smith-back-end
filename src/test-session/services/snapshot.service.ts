@@ -62,7 +62,7 @@ export class SnapshotService {
     };
 
     // Add category for code-related questions
-    if (['codeChallenge', 'fillInTheBlank', 'codeDebugging'].includes(question.type)) {
+    if (['codeChallenge', 'fillInTheBlank', 'dragDropCloze', 'codeDebugging'].includes(question.type)) {
       questionData.category = question.category;
     }
 
@@ -74,6 +74,14 @@ export class SnapshotService {
 
     if (question.type === 'fillInTheBlank') {
       questionData.codeTemplate = question.codeTemplate || '';
+      questionData.blanks = question.blanks || [];
+    }
+
+    if (question.type === 'dragDropCloze') {
+      questionData.codeTemplate = question.codeTemplate || '';
+      questionData.dragOptions = question.dragOptions || [];
+      // Include full blanks with correctAnswers (needed for grading)
+      // The correctAnswers are filtered out in question-handler.service.ts when sending to frontend
       questionData.blanks = question.blanks || [];
     }
 
