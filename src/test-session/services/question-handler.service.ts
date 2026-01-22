@@ -1,5 +1,5 @@
 // src/test-session/services/question-handler.service.ts
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { TestSession, TestSessionDocument } from '../../schemas/test-session.schema';
@@ -17,6 +17,8 @@ import { SubmitAnswerDto } from '../dto/test-session.dto';
  */
 @Injectable()
 export class QuestionHandlerService {
+  private readonly logger = new Logger(QuestionHandlerService.name);
+
   constructor(
     @InjectModel(TestSession.name) private testSessionModel: Model<TestSessionDocument>,
   ) {}
@@ -107,11 +109,33 @@ export class QuestionHandlerService {
 
     // Not last question - advance to next
     if (!isLastInSection) {
+      const previousIndex = session.currentQuestionIndex;
       session.currentQuestionIndex++;
 
       // Mark next question as viewed (single save for both operations)
       const nextQuestion = this.getQuestionAt(session, session.currentSectionIndex, session.currentQuestionIndex);
-      if (nextQuestion && nextQuestion.status === 'not_viewed') {
+
+      // Safety check - if next question is somehow null, log and don't advance
+      if (!nextQuestion) {
+        this.logger.error(
+          `Next question null after increment. Session: ${sessionId}, ` +
+          `Section: ${session.currentSectionIndex}, PrevIdx: ${previousIndex}, ` +
+          `NewIdx: ${session.currentQuestionIndex}, SectionQuestionCount: ${this.getQuestionCountInCurrentSection(session)}`
+        );
+        // Revert the increment and stay on current question
+        session.currentQuestionIndex = previousIndex;
+        await session.save();
+
+        const currentQuestion = this.getQuestionAt(session, session.currentSectionIndex, session.currentQuestionIndex);
+        return {
+          action: 'answer_saved',
+          message: 'Answer saved. Unable to advance to next question.',
+          questionState: this.buildQuestionState(session, currentQuestion),
+          navigationContext: this.buildNavigationContext(session),
+        };
+      }
+
+      if (nextQuestion.status === 'not_viewed') {
         nextQuestion.status = 'viewed';
         nextQuestion.firstViewedAt = new Date();
       }
@@ -182,14 +206,22 @@ export class QuestionHandlerService {
     session.lastServerActionAt = new Date();
 
     const question = this.getQuestionAt(session, session.currentSectionIndex, questionIndex);
-    if (question) {
-      if (question.status === 'not_viewed') {
-        question.status = 'viewed';
-        question.firstViewedAt = new Date();
-      }
-      question.viewCount = (question.viewCount || 0) + 1;
-      question.lastViewedAt = new Date();
+
+    // Safety check - question should exist since we validated the index
+    if (!question) {
+      this.logger.error(
+        `Navigation failed - question null. Session: ${sessionId}, ` +
+        `Section: ${session.currentSectionIndex}, Index: ${questionIndex}, Count: ${sectionQuestionCount}`
+      );
+      throw new NotFoundException(`Question at index ${questionIndex} not found`);
     }
+
+    if (question.status === 'not_viewed') {
+      question.status = 'viewed';
+      question.firstViewedAt = new Date();
+    }
+    question.viewCount = (question.viewCount || 0) + 1;
+    question.lastViewedAt = new Date();
 
     await session.save();
 
@@ -225,15 +257,26 @@ export class QuestionHandlerService {
     // Advance to next if not at end
     const isLastInSection = this.isLastQuestionInSection(session);
     if (!isLastInSection) {
+      const previousIndex = session.currentQuestionIndex;
       session.currentQuestionIndex++;
+
+      // Verify next question exists
+      const nextQuestion = this.getQuestionAt(session, session.currentSectionIndex, session.currentQuestionIndex);
+      if (!nextQuestion) {
+        this.logger.error(
+          `Skip advance failed - next question null. Session: ${sessionId}, ` +
+          `Section: ${session.currentSectionIndex}, PrevIdx: ${previousIndex}, NewIdx: ${session.currentQuestionIndex}`
+        );
+        session.currentQuestionIndex = previousIndex;
+      }
     }
 
     await session.save();
 
-    const nextQuestion = this.getQuestionAt(session, session.currentSectionIndex, session.currentQuestionIndex);
+    const currentQuestion = this.getQuestionAt(session, session.currentSectionIndex, session.currentQuestionIndex);
     return {
       action: isLastInSection ? 'at_section_end' : 'next_question',
-      questionState: this.buildQuestionState(session, nextQuestion),
+      questionState: this.buildQuestionState(session, currentQuestion),
       navigationContext: this.buildNavigationContext(session),
     };
   }
@@ -410,7 +453,13 @@ export class QuestionHandlerService {
   }
 
   private buildQuestionState(session: TestSessionDocument, question: any): any {
-    if (!question) return null;
+    if (!question) {
+      this.logger.warn(
+        `buildQuestionState called with null question. Session: ${session._id}, ` +
+        `Section: ${session.currentSectionIndex}, Index: ${session.currentQuestionIndex}`
+      );
+      return null;
+    }
 
     // Filter question data for student view (hide answers)
     const safeQuestionData: any = {};
@@ -444,6 +493,9 @@ export class QuestionHandlerService {
     const questionCount = this.getQuestionCountInCurrentSection(session);
     const sectionStatus = this.getCurrentSectionStatus(session);
 
+    // Convert global indices to section-relative indices for current section
+    const { answeredInSection, skippedInSection } = this.getQuestionStatusesForCurrentSection(session);
+
     const context: any = {
       currentQuestionIndex: session.currentQuestionIndex,
       totalQuestionsInSection: questionCount,
@@ -452,6 +504,9 @@ export class QuestionHandlerService {
       isLastQuestion: session.currentQuestionIndex >= questionCount - 1,
       isReviewing: sectionStatus === 'reviewing' || session.reviewPhase,
       timeRemaining: (session as any).calculateTimeRemaining?.() || 0,
+      answeredQuestions: answeredInSection,
+      skippedQuestions: skippedInSection,
+      questionSummaries: this.buildQuestionSummaries(session),
     };
 
     if (useSections) {
@@ -468,6 +523,62 @@ export class QuestionHandlerService {
     }
 
     return context;
+  }
+
+  /**
+   * Get answered and skipped question indices for current section (section-relative)
+   */
+  private getQuestionStatusesForCurrentSection(session: TestSessionDocument): {
+    answeredInSection: number[];
+    skippedInSection: number[];
+  } {
+    const useSections = session.testSnapshot.settings.useSections;
+
+    if (!useSections) {
+      // Non-sectioned test - indices are already section-relative (global = section)
+      return {
+        answeredInSection: session.answeredQuestions || [],
+        skippedInSection: session.skippedQuestions || [],
+      };
+    }
+
+    // Calculate the global index offset for current section
+    let sectionStartGlobalIndex = 0;
+    for (let i = 0; i < session.currentSectionIndex; i++) {
+      sectionStartGlobalIndex += session.testSnapshot.sections[i]?.questions?.length || 0;
+    }
+
+    const sectionQuestionCount = this.getQuestionCountInCurrentSection(session);
+    const sectionEndGlobalIndex = sectionStartGlobalIndex + sectionQuestionCount;
+
+    // Filter and convert global indices to section-relative
+    const answeredInSection = (session.answeredQuestions || [])
+      .filter(idx => idx >= sectionStartGlobalIndex && idx < sectionEndGlobalIndex)
+      .map(idx => idx - sectionStartGlobalIndex);
+
+    const skippedInSection = (session.skippedQuestions || [])
+      .filter(idx => idx >= sectionStartGlobalIndex && idx < sectionEndGlobalIndex)
+      .map(idx => idx - sectionStartGlobalIndex);
+
+    return { answeredInSection, skippedInSection };
+  }
+
+  /**
+   * Build question summaries for the overview panel
+   */
+  private buildQuestionSummaries(session: TestSessionDocument): any[] {
+    const questions = session.testSnapshot.settings.useSections
+      ? session.testSnapshot.sections?.[session.currentSectionIndex]?.questions || []
+      : session.testSnapshot.questions || [];
+
+    return questions.map((q: any, index: number) => ({
+      index,
+      question: q.questionData?.description || q.questionData?.title || `Question ${index + 1}`,
+      type: q.questionData?.type || 'unknown',
+      options: q.questionData?.options || undefined,
+      studentAnswer: q.studentAnswer ?? null,
+      status: q.status || 'not_viewed',
+    }));
   }
 
   private buildSectionSummary(session: TestSessionDocument): any {
