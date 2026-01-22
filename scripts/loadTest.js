@@ -32,7 +32,7 @@ require('dotenv').config();
 const isFastMode = process.argv.includes('--fast');
 
 const CONFIG = {
-  mongoUrl: process.env.MONGODB_URI || 'mongodb+srv://jordanburger22:9ibAWAvfaFCH78oo@cluster0.hazfttb.mongodb.net/engineersmith',
+  mongoUrl: process.env.MONGODB_URI || '',
   apiUrl: process.argv.find(a => a.startsWith('--url='))?.split('=')[1] || 'http://localhost:3000',
   numUsers: parseInt(process.argv.find(a => a.startsWith('--users='))?.split('=')[1] || '10'),
   testId: process.argv.find(a => a.startsWith('--testId='))?.split('=')[1],
