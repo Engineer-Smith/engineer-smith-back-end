@@ -230,7 +230,9 @@ export class GradingService {
         [Language.PYTHON]: Runtime.PYTHON,
         [Language.SQL]: Runtime.SQL,
         [Language.DART]: Runtime.DART,
-        // UI frameworks don't have direct runtime mapping
+        // UI frameworks and Swift don't have direct runtime mapping (non-executable)
+        [Language.SWIFT]: null,
+        [Language.SWIFTUI]: null,
         [Language.REACT]: null,
         [Language.REACT_NATIVE]: null,
         [Language.FLUTTER]: null,

@@ -26,6 +26,8 @@ export const LANGUAGES = [
   'python',
   'typescript',
   'json',
+  'swift',
+  'swiftui',
 ] as const;
 
 export const DIFFICULTIES = ['easy', 'medium', 'hard'] as const;
@@ -47,11 +49,13 @@ export const VALID_COMBINATIONS: Record<string, string[]> = {
   react: ['ui', 'syntax'],
   flutter: ['ui', 'syntax'],
   reactNative: ['ui', 'syntax'],
+  swiftui: ['ui', 'syntax'],
   javascript: ['logic', 'syntax'],
   typescript: ['logic', 'syntax'],
   python: ['logic', 'syntax'],
   sql: ['logic', 'syntax'],
   dart: ['logic', 'syntax'],
+  swift: ['ui', 'syntax'],
   express: ['logic', 'syntax'],
   json: ['syntax'],
 };
@@ -103,6 +107,14 @@ export const VALID_TYPE_COMBINATIONS: Record<string, Record<string, string[]>> =
     syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
   json: {
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
+  },
+  swift: {
+    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
+    syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
+  },
+  swiftui: {
+    ui: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
     syntax: ['multipleChoice', 'trueFalse', 'fillInTheBlank', 'dragDropCloze'],
   },
 };

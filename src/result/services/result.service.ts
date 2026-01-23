@@ -44,37 +44,88 @@ export class ResultService {
   }
 
   /**
-   * Get all results with filters
+   * Get all results with filters and pagination
    */
-  async getAllResults(filters: ResultFiltersDto, user: RequestUser): Promise<any[]> {
+  async getAllResults(filters: ResultFiltersDto, user: RequestUser): Promise<{
+    data: any[];
+    pagination: {
+      total: number;
+      limit: number;
+      page: number;
+      totalPages: number;
+      hasMore: boolean;
+    };
+  }> {
     const query = this.buildResultQuery(filters, user);
+    const sortOption = this.parseSortOption(filters.sort);
+    const limit = filters.limit || 10;
+    // Support both page-based and skip-based pagination
+    const page = filters.page || 1;
+    const skip = filters.skip ?? (page - 1) * limit;
 
-    const results = await this.resultModel
-      .find(query)
-      .skip(filters.skip || 0)
-      .limit(filters.limit || 10)
-      .populate({
-        path: 'userId',
-        select: 'loginId firstName lastName fullName email',
-        model: 'User',
-      })
-      .populate({
-        path: 'organizationId',
-        select: 'name',
-        model: 'Organization',
-      })
-      .populate({
-        path: 'testId',
-        select: 'title description',
-        model: 'Test',
-      })
-      .select(
-        'sessionId testId userId organizationId attemptNumber status completedAt timeSpent score createdAt',
-      )
-      .sort({ createdAt: -1 })
-      .lean();
+    const [results, total] = await Promise.all([
+      this.resultModel
+        .find(query)
+        .skip(skip)
+        .limit(limit)
+        .populate({
+          path: 'userId',
+          select: 'loginId firstName lastName fullName email',
+          model: 'User',
+        })
+        .populate({
+          path: 'organizationId',
+          select: 'name',
+          model: 'Organization',
+        })
+        .populate({
+          path: 'testId',
+          select: 'title description',
+          model: 'Test',
+        })
+        .select(
+          'sessionId testId userId organizationId attemptNumber status completedAt timeSpent score createdAt',
+        )
+        .sort(sortOption)
+        .lean(),
+      this.resultModel.countDocuments(query),
+    ]);
 
-    return results;
+    const totalPages = Math.ceil(total / limit);
+
+    return {
+      data: results,
+      pagination: {
+        total,
+        limit,
+        page,
+        totalPages,
+        hasMore: skip + results.length < total,
+      },
+    };
+  }
+
+  /**
+   * Parse sort string into MongoDB sort object
+   * Format: "-field" for descending, "field" for ascending
+   * Example: "-completedAt" => { completedAt: -1 }
+   */
+  private parseSortOption(sort?: string): Record<string, 1 | -1> {
+    if (!sort) {
+      return { createdAt: -1 }; // Default sort
+    }
+
+    // Whitelist of allowed sort fields
+    const allowedFields = ['createdAt', 'completedAt', 'timeSpent', 'score.percentage', 'attemptNumber'];
+
+    const isDescending = sort.startsWith('-');
+    const field = isDescending ? sort.slice(1) : sort;
+
+    if (!allowedFields.includes(field)) {
+      return { createdAt: -1 }; // Fallback to default for invalid fields
+    }
+
+    return { [field]: isDescending ? -1 : 1 };
   }
 
   /**
@@ -265,17 +316,19 @@ export class ResultService {
   // Private helper methods
 
   private buildResultQuery(filters: ResultFiltersDto, user: RequestUser): any {
-    const { userId, testId, orgId } = filters;
+    const { userId, testId, orgId, status } = filters;
     const isSuperOrgAdminOrInstructor =
       user.isSuperOrgAdmin || (user.organizationId && user.role === 'instructor');
 
     const query: any = {};
 
     if (isSuperOrgAdminOrInstructor) {
+      // Super admins and instructors can see all results, with optional filters
       if (userId) query.userId = userId;
       if (testId) query.testId = testId;
       if (orgId) query.organizationId = orgId;
     } else if (user.role === 'admin') {
+      // Admins see only their organization's results
       if (orgId && orgId !== user.organizationId) {
         throw new ForbiddenException('Unauthorized to access results for this organization');
       }
@@ -286,6 +339,11 @@ export class ResultService {
       // Students can only see their own results
       query.userId = user.userId;
       if (testId) query.testId = testId;
+    }
+
+    // Apply status filter if provided
+    if (status) {
+      query.status = status;
     }
 
     return query;

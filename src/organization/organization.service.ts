@@ -15,6 +15,7 @@ import {
   GetOrganizationsQueryDto,
   OrganizationResponseDto,
   InviteCodeValidationResponseDto,
+  UpdateOrganizationSettingsDto,
 } from './dto/organization.dto';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 
@@ -193,6 +194,76 @@ export class OrganizationService {
    */
   async getSuperOrganization(): Promise<OrganizationDocument | null> {
     return this.organizationModel.findOne({ isSuperOrg: true });
+  }
+
+  /**
+   * Get organization settings
+   */
+  async getSettings(orgId: string, currentUser: RequestUser): Promise<any> {
+    // Validate access: super org admin or admin of same org
+    if (
+      !currentUser.isSuperOrgAdmin &&
+      (currentUser.organizationId !== orgId || currentUser.role !== 'admin')
+    ) {
+      throw new ForbiddenException('Only admins can access organization settings');
+    }
+
+    const organization = await this.organizationModel.findById(orgId).select('settings');
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    // Return settings with defaults
+    return {
+      allowSelfRegistration: organization.settings?.allowSelfRegistration ?? true,
+      defaultStudentAttemptsPerTest: organization.settings?.defaultStudentAttemptsPerTest ?? 1,
+      testGracePeriodMinutes: organization.settings?.testGracePeriodMinutes ?? 5,
+      requireEmailVerification: organization.settings?.requireEmailVerification ?? false,
+      allowInstructorTestCreation: organization.settings?.allowInstructorTestCreation ?? true,
+      maxQuestionsPerTest: organization.settings?.maxQuestionsPerTest ?? 100,
+      defaultTestTimeLimit: organization.settings?.defaultTestTimeLimit ?? 60,
+    };
+  }
+
+  /**
+   * Update organization settings
+   */
+  async updateSettings(
+    orgId: string,
+    dto: UpdateOrganizationSettingsDto,
+    currentUser: RequestUser,
+  ): Promise<any> {
+    // Validate access: super org admin or admin of same org
+    if (
+      !currentUser.isSuperOrgAdmin &&
+      (currentUser.organizationId !== orgId || currentUser.role !== 'admin')
+    ) {
+      throw new ForbiddenException('Only admins can update organization settings');
+    }
+
+    const organization = await this.organizationModel.findById(orgId);
+    if (!organization) {
+      throw new NotFoundException('Organization not found');
+    }
+
+    // Merge with existing settings
+    const currentSettings = organization.settings || {};
+    const newSettings = {
+      ...currentSettings,
+      ...Object.fromEntries(
+        Object.entries(dto).filter(([_, v]) => v !== undefined)
+      ),
+    };
+
+    const updated = await this.organizationModel
+      .findByIdAndUpdate(
+        orgId,
+        { $set: { settings: newSettings } },
+        { new: true, runValidators: true }
+      )
+      .select('settings');
+
+    return updated?.settings || newSettings;
   }
 
   // Private helper methods

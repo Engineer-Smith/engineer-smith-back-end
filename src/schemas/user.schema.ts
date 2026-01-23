@@ -79,6 +79,24 @@ export class User {
   @Prop({ default: false })
   unlimitedAttempts: boolean;
 
+  @Prop({
+    type: {
+      theme: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
+      emailNotifications: { type: Boolean, default: true },
+      testReminders: { type: Boolean, default: true },
+      codeEditorFontSize: { type: Number, default: 14 },
+      codeEditorTheme: { type: String, default: 'vs-dark' },
+    },
+    default: () => ({}),
+  })
+  preferences?: {
+    theme?: 'light' | 'dark' | 'system';
+    emailNotifications?: boolean;
+    testReminders?: boolean;
+    codeEditorFontSize?: number;
+    codeEditorTheme?: string;
+  };
+
   @Prop()
   createdAt: Date;
 

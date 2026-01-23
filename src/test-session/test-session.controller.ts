@@ -17,6 +17,7 @@ import { SessionManagerService } from './services/session-manager.service';
 import { QuestionHandlerService } from './services/question-handler.service';
 import { TimerService } from './services/timer.service';
 import { GradingService } from '../grading/grading.service';
+import { CodeExecutionService } from '../grading/code-execution.service';
 import {
   StartTestSessionDto,
   SubmitAnswerDto,
@@ -46,6 +47,7 @@ export class TestSessionController {
     private readonly questionHandlerService: QuestionHandlerService,
     private readonly timerService: TimerService,
     private readonly gradingService: GradingService,
+    private readonly codeExecutionService: CodeExecutionService,
   ) {}
 
   // ==========================================
@@ -265,13 +267,15 @@ export class TestSessionController {
     }
 
     try {
-      const result = await this.gradingService.runCodeTests({
+      // Preview uses normal priority (not a timed submission)
+      const result = await this.codeExecutionService.executeCode({
         code: body.code,
         language: questionData.language,
         testCases: visibleTestCases,
         runtime: codeConfig?.runtime || 'node',
         entryFunction: codeConfig?.entryFunction,
         timeoutMs: codeConfig?.timeoutMs || 3000,
+        priority: 'normal',
       });
 
       return {

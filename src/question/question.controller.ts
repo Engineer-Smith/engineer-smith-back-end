@@ -20,6 +20,7 @@ import {
   QuestionFiltersDto,
   CheckDuplicatesDto,
   TestQuestionDto,
+  ImportQuestionsDto,
 } from './dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -242,6 +243,37 @@ export class QuestionController {
   @AnyRole()
   async getQuestionStats(@CurrentUser() user: RequestUser) {
     return this.questionService.getQuestionStats(user);
+  }
+
+  /**
+   * POST /questions/import
+   * Import multiple questions in bulk
+   * Access: Admin, Instructor
+   */
+  @Post('import')
+  @UseGuards(RolesGuard)
+  @AdminOrInstructor()
+  @HttpCode(HttpStatus.OK)
+  async importQuestions(
+    @Body() dto: ImportQuestionsDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.questionService.importQuestions(dto, user);
+  }
+
+  /**
+   * GET /questions/global
+   * Get global questions (for global content management)
+   * Access: Super org admins only
+   */
+  @Get('global')
+  @UseGuards(RolesGuard)
+  @AdminOrInstructor()
+  async getGlobalQuestions(
+    @Query() filters: QuestionFiltersDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.questionService.getGlobalQuestions(filters, user);
   }
 
   /**

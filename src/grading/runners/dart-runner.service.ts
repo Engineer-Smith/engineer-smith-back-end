@@ -278,20 +278,34 @@ void main() async {
     scriptPath: string,
     timeoutMs: number,
   ): Promise<{ error: string | null; stdout: string; stderr: string }> {
+    const MAX_OUTPUT_SIZE = 1_000_000; // 1MB
+
     return new Promise((resolve) => {
-      const child = spawn('dart', [scriptPath], {
+      const child = spawn('dart', ['--old-gen-heap-size=64', scriptPath], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
 
       let stdout = '';
       let stderr = '';
+      let outputLimitReached = false;
 
       child.stdout.on('data', (data) => {
-        stdout += data.toString();
+        if (stdout.length < MAX_OUTPUT_SIZE) {
+          stdout += data.toString();
+        } else if (!outputLimitReached) {
+          outputLimitReached = true;
+          this.logger.warn('Output limit reached, terminating process');
+          child.kill('SIGTERM');
+        }
       });
 
       child.stderr.on('data', (data) => {
-        stderr += data.toString();
+        if (stderr.length < MAX_OUTPUT_SIZE) {
+          stderr += data.toString();
+        } else if (!outputLimitReached) {
+          outputLimitReached = true;
+          child.kill('SIGTERM');
+        }
       });
 
       const timeoutHandle = setTimeout(() => {
@@ -302,7 +316,13 @@ void main() async {
       child.on('close', (code, signal) => {
         clearTimeout(timeoutHandle);
 
-        if (signal === 'SIGTERM' || signal === 'SIGKILL') {
+        if (outputLimitReached) {
+          resolve({
+            error: 'Output limit exceeded (1MB). Your code may have an infinite loop or excessive logging.',
+            stdout: '',
+            stderr: '',
+          });
+        } else if (signal === 'SIGTERM' || signal === 'SIGKILL') {
           resolve({
             error: `Execution timed out after ${timeoutMs}ms`,
             stdout: '',

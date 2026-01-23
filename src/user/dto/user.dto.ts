@@ -5,12 +5,13 @@ import {
   IsOptional,
   IsEnum,
   IsNumber,
+  IsBoolean,
   Min,
   MaxLength,
   MinLength,
   Matches,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 // Valid roles
 export type UserRole = 'admin' | 'instructor' | 'student';
@@ -125,6 +126,59 @@ export class CreateUserDto {
 }
 
 /**
+ * DTO for user preferences
+ */
+export class UserPreferencesDto {
+  @IsOptional()
+  @IsEnum(['light', 'dark', 'system'])
+  theme?: 'light' | 'dark' | 'system';
+
+  @IsOptional()
+  @Type(() => Boolean)
+  emailNotifications?: boolean;
+
+  @IsOptional()
+  @Type(() => Boolean)
+  testReminders?: boolean;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsNumber()
+  @Min(10)
+  codeEditorFontSize?: number;
+
+  @IsOptional()
+  @IsString()
+  codeEditorTheme?: string;
+}
+
+/**
+ * DTO for updating own profile (users updating themselves)
+ */
+export class UpdateProfileDto {
+  @IsOptional()
+  @IsEmail()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(50)
+  lastName?: string;
+}
+
+/**
+ * DTO for updating user preferences
+ */
+export class UpdatePreferencesDto extends UserPreferencesDto {}
+
+/**
  * Response DTO for user data (excludes sensitive fields)
  */
 export class UserResponseDto {
@@ -137,6 +191,7 @@ export class UserResponseDto {
   organizationId: string;
   role: UserRole;
   isSSO: boolean;
+  preferences?: UserPreferencesDto;
   createdAt: Date;
   updatedAt: Date;
 }

@@ -54,6 +54,22 @@ export class SqlRunnerService {
       };
     }
 
+    // Validate single statement
+    try {
+      this.validateSingleStatement(query);
+    } catch (validationError: any) {
+      return {
+        success: false,
+        testResults: [],
+        overallPassed: false,
+        totalTestsPassed: 0,
+        totalTests: testCases.length,
+        consoleLogs: [],
+        executionError: validationError.message,
+        compilationError: null,
+      };
+    }
+
     try {
       // Dynamic import sql.js
       const initSqlJs = (await import('sql.js')).default;
@@ -108,16 +124,26 @@ export class SqlRunnerService {
             throw new Error('Query execution timed out');
           }
 
+          const MAX_ROWS = 1000;
           const rows: any[] = [];
           let rowCount = 0;
+
           while (stmt.step()) {
-            rows.push(stmt.getAsObject());
             rowCount++;
+
+            if (rowCount > MAX_ROWS) {
+              stmt.free();
+              throw new Error(
+                `Query returned too many rows (limit: ${MAX_ROWS}). Check for cartesian joins.`,
+              );
+            }
 
             if (Date.now() - queryStartTime > timeoutMs) {
               stmt.free();
               throw new Error('Query execution timed out');
             }
+
+            rows.push(stmt.getAsObject());
           }
           stmt.free();
 
@@ -245,5 +271,24 @@ export class SqlRunnerService {
     }
 
     return true;
+  }
+
+  /**
+   * Validate that query contains only a single statement
+   */
+  private validateSingleStatement(query: string): void {
+    // Remove string literals to avoid false positives
+    const withoutStrings = query
+      .replace(/'[^']*'/g, '')
+      .replace(/"[^"]*"/g, '');
+
+    const semicolons = (withoutStrings.match(/;/g) || []).length;
+    const trimmed = withoutStrings.trim();
+
+    if (semicolons > 1 || (semicolons === 1 && !trimmed.endsWith(';'))) {
+      throw new Error(
+        'Multiple statements not allowed. Submit one query at a time.',
+      );
+    }
   }
 }

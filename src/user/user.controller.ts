@@ -19,6 +19,8 @@ import {
   GetUsersQueryDto,
   UpdateUserDto,
   CreateUserDto,
+  UpdateProfileDto,
+  UpdatePreferencesDto,
 } from './dto/user.dto';
 
 @Controller('users')
@@ -47,6 +49,56 @@ export class UserController {
       skip: filters.skip || 0,
       limit: filters.limit || 10,
     };
+  }
+
+  /**
+   * GET /users/me
+   * Get current user's profile
+   * Access: Any authenticated user
+   */
+  @Get('me')
+  @Roles('admin', 'instructor', 'student')
+  async getMyProfile(@CurrentUser() user: RequestUser) {
+    return this.userService.getUser(user.userId, user);
+  }
+
+  /**
+   * PATCH /users/me
+   * Update current user's profile
+   * Access: Any authenticated user
+   */
+  @Patch('me')
+  @Roles('admin', 'instructor', 'student')
+  async updateMyProfile(
+    @Body() dto: UpdateProfileDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.userService.updateProfile(user.userId, dto);
+  }
+
+  /**
+   * GET /users/me/preferences
+   * Get current user's preferences
+   * Access: Any authenticated user
+   */
+  @Get('me/preferences')
+  @Roles('admin', 'instructor', 'student')
+  async getMyPreferences(@CurrentUser() user: RequestUser) {
+    return this.userService.getPreferences(user.userId);
+  }
+
+  /**
+   * PATCH /users/me/preferences
+   * Update current user's preferences
+   * Access: Any authenticated user
+   */
+  @Patch('me/preferences')
+  @Roles('admin', 'instructor', 'student')
+  async updateMyPreferences(
+    @Body() dto: UpdatePreferencesDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.userService.updatePreferences(user.userId, dto);
   }
 
   /**

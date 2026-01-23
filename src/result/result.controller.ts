@@ -11,12 +11,13 @@ import { ResultValidationService } from './services/result-validation.service';
 import { ResultFiltersDto, AnalyticsFiltersDto } from './dto/result.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 
 @Controller('results')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, OrganizationGuard, RolesGuard)
 export class ResultController {
   constructor(
     private readonly resultService: ResultService,

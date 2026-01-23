@@ -8,7 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Question, QuestionDocument } from '../../schemas/question.schema';
 import { Organization, OrganizationDocument } from '../../schemas/organization.schema';
-import { CreateQuestionDto, UpdateQuestionDto, QuestionFiltersDto } from '../dto';
+import { CreateQuestionDto, UpdateQuestionDto, QuestionFiltersDto, ImportQuestionsDto, ImportResultDto } from '../dto';
 import { QuestionValidationService } from './question-validation.service';
 import { QuestionFormatterService } from './question-formatter.service';
 import type { RequestUser } from '../../auth/interfaces/jwt-payload.interface';
@@ -225,6 +225,133 @@ export class QuestionService {
     return {
       byLanguage: stats,
       totals: totalStats,
+    };
+  }
+
+  /**
+   * Import multiple questions in bulk
+   */
+  async importQuestions(
+    dto: ImportQuestionsDto,
+    user: RequestUser,
+  ): Promise<ImportResultDto> {
+    const { questions, skipDuplicates = true } = dto;
+    const result: ImportResultDto = {
+      imported: 0,
+      skipped: 0,
+      errors: [],
+    };
+
+    // Check permissions for import
+    const { organizationId, isGlobal: canCreateGlobal } =
+      await this.validationService.validateQuestionPermissions(user, false);
+
+    for (let i = 0; i < questions.length; i++) {
+      const questionData = questions[i];
+
+      try {
+        // Validate the question data
+        await this.validationService.validateQuestionData(questionData, 'create');
+
+        // Check for duplicate by title + type + language
+        if (skipDuplicates) {
+          const duplicateQuery: any = {
+            title: questionData.title,
+            type: questionData.type,
+            language: questionData.language,
+          };
+
+          // Build $or condition for org scope
+          const orConditions: any[] = [{ isGlobal: true }];
+          if (organizationId) {
+            orConditions.push({ organizationId });
+          }
+          duplicateQuery.$or = orConditions;
+
+          const existing = await this.questionModel.findOne(duplicateQuery);
+
+          if (existing) {
+            result.skipped++;
+            continue;
+          }
+        }
+
+        // Determine if this question should be global
+        const questionIsGlobal = canCreateGlobal && questionData.isGlobal;
+
+        // Create question
+        const question = new this.questionModel({
+          ...questionData,
+          organizationId: questionIsGlobal ? null : organizationId,
+          isGlobal: questionIsGlobal,
+          status: questionData.status || 'draft',
+          createdBy: user.userId,
+          usageStats: {
+            timesUsed: 0,
+            totalAttempts: 0,
+            correctAttempts: 0,
+            successRate: 0,
+            averageTime: 0,
+          },
+        });
+
+        await question.save();
+        result.imported++;
+      } catch (error: any) {
+        result.errors.push({
+          index: i,
+          title: questionData.title || `Question ${i + 1}`,
+          error: error.message || 'Unknown error',
+        });
+      }
+    }
+
+    return result;
+  }
+
+  /**
+   * Get global questions (for global content management)
+   */
+  async getGlobalQuestions(filters: QuestionFiltersDto, user: RequestUser) {
+    // Only super org admins can manage global content
+    if (!user.isSuperOrgAdmin) {
+      throw new ForbiddenException('Only super organization admins can access global content');
+    }
+
+    const query: any = { isGlobal: true };
+
+    if (filters.language) {
+      if (filters.language.includes(',')) {
+        query.language = { $in: filters.language.split(',').map((l) => l.trim()) };
+      } else {
+        query.language = filters.language;
+      }
+    }
+    if (filters.category) query.category = filters.category;
+    if (filters.difficulty) query.difficulty = filters.difficulty;
+    if (filters.type) query.type = filters.type;
+    if (filters.status) query.status = filters.status;
+    if (filters.tag) query.tags = { $in: [filters.tag] };
+
+    const [questions, total] = await Promise.all([
+      this.questionModel
+        .find(query)
+        .skip(filters.skip || 0)
+        .limit(filters.limit || 10)
+        .lean(),
+      this.questionModel.countDocuments(query),
+    ]);
+
+    return {
+      questions: questions.map((q) =>
+        this.formatterService.formatQuestionResponse(q as QuestionDocument, user),
+      ),
+      pagination: {
+        skip: filters.skip || 0,
+        limit: filters.limit || 10,
+        total,
+        returned: questions.length,
+      },
     };
   }
 

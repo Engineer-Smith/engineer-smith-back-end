@@ -236,6 +236,57 @@ export class TestService {
       });
   }
 
+  /**
+   * Get global tests (for global content management)
+   */
+  async getGlobalTests(filters: TestFiltersDto, user: RequestUser) {
+    // Only super org admins can manage global content
+    if (!user.isSuperOrgAdmin) {
+      throw new ForbiddenException('Only super organization admins can access global content');
+    }
+
+    const query: any = { isGlobal: true };
+
+    if (filters.testType) query.testType = filters.testType;
+    if (filters.language) query.languages = filters.language;
+    if (filters.tag) query.tags = filters.tag;
+    if (filters.status) query.status = filters.status;
+
+    const [tests, total] = await Promise.all([
+      this.testModel
+        .find(query)
+        .skip(filters.skip || 0)
+        .limit(filters.limit || 10)
+        .select('title description testType languages tags settings status stats createdBy createdAt updatedAt')
+        .sort({ createdAt: -1 }),
+      this.testModel.countDocuments(query),
+    ]);
+
+    return {
+      tests: tests.map((test) => ({
+        _id: test._id,
+        title: test.title,
+        description: test.description,
+        testType: test.testType,
+        languages: test.languages,
+        tags: test.tags,
+        settings: test.settings,
+        isGlobal: true,
+        status: test.status,
+        stats: test.stats,
+        createdBy: test.createdBy,
+        createdAt: test.createdAt,
+        updatedAt: test.updatedAt,
+      })),
+      pagination: {
+        skip: filters.skip || 0,
+        limit: filters.limit || 10,
+        total,
+        returned: tests.length,
+      },
+    };
+  }
+
   // Private helper methods
 
   private async validateTestAccess(test: TestDocument, user: RequestUser): Promise<void> {

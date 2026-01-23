@@ -390,3 +390,31 @@ export class TestQuestionDto {
   @IsString()
   testCode: string;
 }
+
+// Import questions DTO
+export class ImportQuestionsDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ValidateNested({ each: true })
+  @Type(() => CreateQuestionDto)
+  questions: CreateQuestionDto[];
+
+  @IsOptional()
+  @IsBoolean()
+  skipDuplicates?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  overwriteExisting?: boolean;
+}
+
+// Import result
+export class ImportResultDto {
+  imported: number;
+  skipped: number;
+  errors: Array<{
+    index: number;
+    title: string;
+    error: string;
+  }>;
+}

@@ -18,7 +18,7 @@ import { Type } from 'class-transformer';
 
 // Enums
 export type Difficulty = 'easy' | 'medium' | 'hard';
-export type Language = 'javascript' | 'python' | 'dart' | 'sql';
+export type Language = 'javascript' | 'python' | 'dart' | 'sql' | 'swift';
 export type ChallengeStatus = 'draft' | 'active' | 'archived';
 
 // Sub-DTOs for challenge creation
@@ -69,6 +69,11 @@ class CodeConfigDto {
   @ValidateNested()
   @Type(() => LanguageCodeConfigDto)
   sql?: LanguageCodeConfigDto;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => LanguageCodeConfigDto)
+  swift?: LanguageCodeConfigDto;
 }
 
 class StartingCodeDto {
@@ -87,6 +92,10 @@ class StartingCodeDto {
   @IsOptional()
   @IsString()
   sql?: string;
+
+  @IsOptional()
+  @IsString()
+  swift?: string;
 }
 
 class TestCaseDto {
@@ -108,7 +117,7 @@ class TestCaseDto {
  * DTO for validating code without an existing challenge
  */
 export class ValidateCodeDto {
-  @IsEnum(['javascript', 'python', 'dart', 'sql'])
+  @IsEnum(['javascript', 'python', 'dart', 'sql', 'swift'])
   language: Language;
 
   @IsString()
@@ -226,7 +235,7 @@ export class UpdateChallengeDto extends CreateChallengeDto {
  */
 export class GetChallengesQueryDto {
   @IsOptional()
-  @IsEnum(['javascript', 'python', 'dart', 'sql'])
+  @IsEnum(['javascript', 'python', 'dart', 'sql', 'swift'])
   language?: Language;
 
   @IsOptional()
@@ -266,7 +275,7 @@ export class RunCodeDto {
   @IsString()
   code: string;
 
-  @IsEnum(['javascript', 'python', 'dart', 'sql'])
+  @IsEnum(['javascript', 'python', 'dart', 'sql', 'swift'])
   language: Language;
 
   @IsOptional()
@@ -285,7 +294,7 @@ export class CreateTrackDto {
   @IsString()
   description: string;
 
-  @IsEnum(['javascript', 'python', 'dart'])
+  @IsEnum(['javascript', 'python', 'dart', 'swift'])
   language: string;
 
   @IsString()
@@ -340,7 +349,7 @@ export class UpdateTrackDto extends CreateTrackDto {
  */
 export class GetTracksQueryDto {
   @IsOptional()
-  @IsEnum(['javascript', 'python', 'dart'])
+  @IsEnum(['javascript', 'python', 'dart', 'swift'])
   language?: string;
 
   @IsOptional()
@@ -405,7 +414,7 @@ export class AddChallengeToTrackDto {
  */
 export class AdminChallengesQueryDto {
   @IsOptional()
-  @IsEnum(['javascript', 'python', 'dart', 'sql'])
+  @IsEnum(['javascript', 'python', 'dart', 'sql', 'swift'])
   language?: Language;
 
   @IsOptional()

@@ -1,12 +1,16 @@
 import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { GradingService } from '../../grading/grading.service';
+import { CodeExecutionService } from '../../grading/code-execution.service';
 import { CreateQuestionDto } from '../dto';
 import { Runtime } from '../../grading/dto';
 import type { RequestUser } from '../../auth/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class QuestionTestingService {
-  constructor(private gradingService: GradingService) {}
+  constructor(
+    private gradingService: GradingService,
+    private codeExecutionService: CodeExecutionService,
+  ) {}
 
   /**
    * Test a question's code/answers before saving
@@ -92,7 +96,7 @@ export class QuestionTestingService {
       throw new BadRequestException('Code config is required');
     }
 
-    // Map language to runtime
+    // Map language to runtime (Swift is not executable - UI/syntax only)
     const runtimeMap: Record<string, Runtime> = {
       javascript: Runtime.NODE,
       typescript: Runtime.NODE,
@@ -110,7 +114,7 @@ export class QuestionTestingService {
     }
 
     // Run the code tests
-    const result = await this.gradingService.runCodeTests({
+    const result = await this.codeExecutionService.executeCode({
       code: testCode,
       language: language as any,
       runtime,
@@ -126,6 +130,7 @@ export class QuestionTestingService {
       })),
       entryFunction: codeConfig.entryFunction,
       timeoutMs: codeConfig.timeoutMs || 3000,
+      priority: 'normal',
     });
 
     return {

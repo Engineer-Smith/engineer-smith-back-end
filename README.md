@@ -1,98 +1,234 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Engineer Smith Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+NestJS backend for the Engineer Smith coding assessment platform. Handles user authentication, question management, test administration, and secure code execution.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## Architecture Overview
 
-## Description
-
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
-
-## Project setup
-
-```bash
-$ npm install
+```
+src/
+├── auth/              # JWT authentication, guards, SSO
+├── user/              # User management
+├── organization/      # Multi-tenant organization support
+├── question/          # Question CRUD and type-specific logic
+├── test/              # Test (assessment) management
+├── test-session/      # Live test-taking sessions
+├── grading/           # Code execution and grading engine
+├── code-challenge/    # Practice mode code challenges
+├── result/            # Test results and analytics
+├── gateway/           # WebSocket gateway for real-time updates
+├── notification/      # User notifications
+├── admin/             # Admin-only endpoints
+├── schemas/           # Mongoose schemas
+├── tags/              # Question tagging system
+└── common/            # Shared utilities
 ```
 
-## Compile and run the project
+## Core Systems
 
-```bash
-# development
-$ npm run start
+### Question Types
 
-# watch mode
-$ npm run start:dev
+| Type | Description |
+|------|-------------|
+| `multipleChoice` | Single correct answer from options |
+| `trueFalse` | Boolean answer |
+| `fillInTheBlank` | Text input blanks in code |
+| `dragDropCloze` | Drag tokens into blanks |
+| `codeChallenge` | Write code, run against test cases |
+| `codeDebugging` | Fix buggy code to pass tests |
 
-# production mode
-$ npm run start:prod
+### Supported Languages
+
+**Logic languages** (support `codeChallenge` and `codeDebugging`):
+- JavaScript, TypeScript, Python, SQL, Dart, Swift, Express
+
+**UI languages** (no code execution):
+- HTML, CSS, React, React Native, Flutter, SwiftUI
+
+### Code Execution Runtimes
+
+| Runtime | Languages | Execution Method |
+|---------|-----------|------------------|
+| `node` | JavaScript, TypeScript, React, Express | Child process with isolated-vm |
+| `python` | Python | Child process with memory limits |
+| `sql` | SQL | sql.js (in-memory SQLite) |
+| `dart` | Dart | Child process with heap limits |
+| `swift` | Swift, SwiftUI | Child process |
+
+## Grading System
+
+### Queue System
+
+Code execution uses a priority queue to manage concurrency:
+
+- **Max concurrent jobs**: 8 total, 3 per language
+- **Priority levels**: `high` (test sessions), `normal` (practice)
+- **Security scanning**: All code scanned before queueing
+
+```
+POST /grading/queue/status    # Lightweight status (any auth user)
+GET  /grading/queue/metrics   # Full metrics (admin only)
+POST /grading/queue/reset-metrics  # Reset counters (admin only)
 ```
 
-## Run tests
+### Security Scanner
 
-```bash
-# unit tests
-$ npm run test
+All submitted code is scanned for prohibited patterns before execution:
 
-# e2e tests
-$ npm run test:e2e
+- **JavaScript**: `eval()`, `require('fs')`, `process.exit`, prototype pollution
+- **Python**: `import os`, `exec()`, `subprocess`, infinite loops
+- **Swift**: `FileManager`, `URLSession`, `Process`
+- **Dart**: `dart:io`, `dart:ffi`, `Process`
+- **SQL**: `INTO OUTFILE`, `SLEEP()`, `BENCHMARK()`
 
-# test coverage
-$ npm run test:cov
+Rejected code returns an error without entering the queue.
+
+### Resource Limits
+
+| Limit | Value |
+|-------|-------|
+| Output size | 1 MB |
+| Default timeout | 5000 ms |
+| SQL row limit | 1000 rows |
+| Python memory | ~128 MB |
+| Dart heap | 64 MB |
+
+## Test Sessions
+
+Test sessions are stateful, real-time assessments:
+
+1. **Start**: Creates a snapshot of the test (questions frozen at start time)
+2. **Progress**: WebSocket connection tracks answers, time, navigation
+3. **Sections**: Optional timed sections with independent timers
+4. **Grace period**: 5-minute reconnection window on disconnect
+5. **Completion**: Auto-submit on timeout, manual submit, or expiration
+
+### Session States
+
+```
+inProgress → paused (disconnect) → inProgress (reconnect)
+                                 → expired (grace period exceeded)
+inProgress → completed (submitted)
+inProgress → expired (time limit)
 ```
 
-## Deployment
+## API Structure
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Authentication
+- `POST /auth/login` - Email/password login
+- `POST /auth/register` - New user registration
+- `POST /auth/refresh` - Token refresh
+- `POST /auth/sso` - SSO token exchange
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Questions
+- `GET /questions` - List with filters
+- `POST /questions` - Create (by type)
+- `PATCH /questions/:id` - Update
+- `DELETE /questions/:id` - Soft delete
+- `POST /questions/:id/test` - Test question execution
+
+### Tests
+- `GET /tests` - List assessments
+- `POST /tests` - Create assessment
+- `PATCH /tests/:id` - Update
+- `POST /tests/:id/start` - Start session
+
+### Test Sessions
+- `GET /test-sessions/active` - Get active session
+- `POST /test-sessions/:id/answer` - Submit answer
+- `POST /test-sessions/:id/navigate` - Change question
+- `POST /test-sessions/:id/submit` - Submit test
+
+### Code Challenges (Practice)
+- `POST /code-challenge/run` - Execute code with tests
+
+## WebSocket Events
+
+Connection: `wss://{WS_URL}/gateway`
+
+### Client → Server
+- `test:heartbeat` - Keep-alive ping
+- `test:answer` - Submit answer
+- `test:navigate` - Change question
+
+### Server → Client
+- `test:state` - Full session state
+- `test:timeUpdate` - Remaining time
+- `test:questionResult` - Answer feedback
+- `test:completed` - Test finished
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 20+
+- MongoDB
+- Python 3 (for Python execution)
+- Dart SDK (for Dart execution)
+- Swift (for Swift execution)
+
+### Setup
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# Install dependencies
+npm install
+
+# Copy environment file
+cp .env.example .env.local
+
+# Edit .env.local with your values
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Environment Variables
 
-## Resources
+```bash
+# Required
+MONGODB_URI=mongodb+srv://...
+JWT_SECRET=<random-32-byte-hex>
+JWT_REFRESH_SECRET=<random-32-byte-hex>
 
-Check out a few resources that may come in handy when working with NestJS:
+# Server
+PORT=3000
+NODE_ENV=development
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+# CORS
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 
-## Support
+# WebSocket
+WS_URL=ws.yourdomain.com
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+# Optional
+SSO_SHARED_SECRET=<for-sso-integration>
+FRONTEND_URL=http://localhost:5173
+```
 
-## Stay in touch
+### Running
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```bash
+# Development (watch mode)
+npm run start:dev
 
-## License
+# Production build
+npm run build
+npm run start:prod
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+# Tests
+npm run test
+npm run test:e2e
+```
+
+## Multi-Tenancy
+
+Questions and tests are scoped by organization:
+
+- **Global** (`isGlobal: true`): Available to all organizations
+- **Organization-specific**: Only visible to that org's users
+- **User-created**: Owned by creating user, scoped to their org
+
+## Admin Features
+
+Admin endpoints require `AdminOnly()` decorator and admin role:
+
+- Queue metrics and reset
+- Security scan metrics
+- Organization management
+- Global question/test management

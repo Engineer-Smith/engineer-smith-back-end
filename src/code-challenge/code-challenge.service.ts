@@ -13,6 +13,7 @@ import { ChallengeSubmission, ChallengeSubmissionDocument } from '../schemas/cha
 import { UserChallengeProgress, UserChallengeProgressDocument } from '../schemas/user-challenge-progress.schema';
 import { UserTrackProgress, UserTrackProgressDocument } from '../schemas/user-track-progress.schema';
 import { GradingService } from '../grading/grading.service';
+import { CodeExecutionService } from '../grading/code-execution.service';
 import {
   GetChallengesQueryDto,
   GetTracksQueryDto,
@@ -29,6 +30,7 @@ export class CodeChallengeService {
     @InjectModel(UserChallengeProgress.name) private progressModel: Model<UserChallengeProgressDocument>,
     @InjectModel(UserTrackProgress.name) private trackProgressModel: Model<UserTrackProgressDocument>,
     private readonly gradingService: GradingService,
+    private readonly codeExecutionService: CodeExecutionService,
   ) {}
 
   // ==========================================
@@ -306,13 +308,14 @@ export class CodeChallengeService {
     }
 
     try {
-      const testResults = await this.gradingService.runCodeTests({
+      const testResults = await this.codeExecutionService.executeCode({
         code: dto.code,
         language: dto.language as any,
         runtime: codeConfig.runtime,
         entryFunction: codeConfig.entryFunction,
         testCases: testCases,
         timeoutMs: codeConfig.timeoutMs,
+        priority: 'normal',
       });
 
       return {
@@ -400,13 +403,14 @@ export class CodeChallengeService {
 
     try {
       // Run tests against ALL test cases
-      const testResults = await this.gradingService.runCodeTests({
+      const testResults = await this.codeExecutionService.executeCode({
         code: dto.code,
         language: dto.language as any,
         runtime: codeConfig.runtime,
         entryFunction: codeConfig.entryFunction,
         testCases: challenge.testCases,
         timeoutMs: codeConfig.timeoutMs,
+        priority: 'normal',
       });
 
       // Update submission

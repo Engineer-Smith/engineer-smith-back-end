@@ -41,6 +41,20 @@ export class TestController {
   }
 
   /**
+   * Get global tests (for global content management)
+   * GET /tests/global
+   * Note: This route must be defined BEFORE the generic :testId route
+   */
+  @Get('global')
+  @Roles('admin')
+  async getGlobalTests(
+    @Query() filters: TestFiltersDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.testService.getGlobalTests(filters, user);
+  }
+
+  /**
    * Get test with full question data (for preview/taking)
    * GET /tests/:testId/with-questions
    * Note: This route must be defined BEFORE the generic :testId route

@@ -7,6 +7,7 @@ import { SessionManagerService } from './services/session-manager.service';
 import { QuestionHandlerService } from './services/question-handler.service';
 import { SnapshotService } from './services/snapshot.service';
 import { GradingService } from '../grading/grading.service';
+import { CodeExecutionService } from '../grading/code-execution.service';
 import { StartTestSessionDto, SubmitAnswerDto, TestSessionFiltersDto, SubmitTestDto } from './dto/test-session.dto';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 import { TestSession, TestSessionDocument } from '../schemas/test-session.schema';
@@ -30,6 +31,7 @@ export class TestSessionService {
     private readonly questionHandler: QuestionHandlerService,
     private readonly snapshotService: SnapshotService,
     private readonly gradingService: GradingService,
+    private readonly codeExecutionService: CodeExecutionService,
   ) {}
 
   // ==========================================
@@ -834,13 +836,15 @@ export class TestSessionService {
     }
 
     try {
-      const result = await this.gradingService.runCodeTests({
+      // Use high priority for test sessions (timed tests)
+      const result = await this.codeExecutionService.executeCode({
         code: question.studentAnswer,
         language: question.questionData.language,
         testCases: question.questionData.testCases,
         runtime: question.questionData.codeConfig.runtime,
         entryFunction: question.questionData.codeConfig.entryFunction,
         timeoutMs: question.questionData.codeConfig.timeoutMs || 3000,
+        priority: 'high',
       });
 
       const isCorrect = result.success && result.overallPassed;

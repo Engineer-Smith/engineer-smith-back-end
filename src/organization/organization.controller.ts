@@ -22,6 +22,7 @@ import {
   UpdateOrganizationDto,
   GetOrganizationsQueryDto,
   ValidateInviteCodeDto,
+  UpdateOrganizationSettingsDto,
 } from './dto/organization.dto';
 
 @Controller('organizations')
@@ -61,6 +62,35 @@ export class OrganizationController {
   @HttpCode(HttpStatus.OK)
   async validateInviteCode(@Body() dto: ValidateInviteCodeDto) {
     return this.organizationService.validateInviteCode(dto.inviteCode);
+  }
+
+  /**
+   * GET /organizations/:id/settings
+   * Get organization settings
+   * Access: Admin of the org or Super Admin
+   */
+  @Get(':id/settings')
+  @Roles('admin')
+  async getOrganizationSettings(
+    @Param('id') orgId: string,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.organizationService.getSettings(orgId, user);
+  }
+
+  /**
+   * PATCH /organizations/:id/settings
+   * Update organization settings
+   * Access: Admin of the org or Super Admin
+   */
+  @Patch(':id/settings')
+  @Roles('admin')
+  async updateOrganizationSettings(
+    @Param('id') orgId: string,
+    @Body() dto: UpdateOrganizationSettingsDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.organizationService.updateSettings(orgId, dto, user);
   }
 
   /**

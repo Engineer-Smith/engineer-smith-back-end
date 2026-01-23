@@ -42,6 +42,16 @@ export class ResultFiltersDto {
   @IsNumber()
   @Min(0)
   skip?: number;
+
+  @IsOptional()
+  @Transform(({ value }) => parseInt(value, 10))
+  @IsNumber()
+  @Min(1)
+  page?: number; // Page number (1-indexed)
+
+  @IsOptional()
+  @IsString()
+  sort?: string; // e.g., "-completedAt" for descending, "completedAt" for ascending
 }
 
 // Analytics Filters DTO

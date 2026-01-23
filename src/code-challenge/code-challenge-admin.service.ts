@@ -12,6 +12,7 @@ import { ChallengeSubmission, ChallengeSubmissionDocument } from '../schemas/cha
 import { UserChallengeProgress, UserChallengeProgressDocument } from '../schemas/user-challenge-progress.schema';
 import { UserTrackProgress, UserTrackProgressDocument } from '../schemas/user-track-progress.schema';
 import { GradingService } from '../grading/grading.service';
+import { CodeExecutionService } from '../grading/code-execution.service';
 import {
   CreateChallengeDto,
   UpdateChallengeDto,
@@ -35,6 +36,7 @@ export class CodeChallengeAdminService {
     @InjectModel(UserChallengeProgress.name) private progressModel: Model<UserChallengeProgressDocument>,
     @InjectModel(UserTrackProgress.name) private trackProgressModel: Model<UserTrackProgressDocument>,
     private readonly gradingService: GradingService,
+    private readonly codeExecutionService: CodeExecutionService,
   ) {}
 
   // ==========================================
@@ -128,13 +130,14 @@ export class CodeChallengeAdminService {
       throw new BadRequestException('No code provided and no solution code available');
     }
 
-    const testResults = await this.gradingService.runCodeTests({
+    const testResults = await this.codeExecutionService.executeCode({
       code: codeToTest,
       language: dto.language as any,
       runtime: codeConfig?.runtime,
       entryFunction: codeConfig?.entryFunction,
       testCases: challenge.testCases,
       timeoutMs: codeConfig?.timeoutMs || 3000,
+      priority: 'normal',
     });
 
     return {
@@ -169,13 +172,14 @@ export class CodeChallengeAdminService {
     }
 
     try {
-      const testResults = await this.gradingService.runCodeTests({
+      const testResults = await this.codeExecutionService.executeCode({
         code: dto.solutionCode,
         language: dto.language as any,
         runtime: runtime as any,
         entryFunction: dto.codeConfig?.entryFunction,
         testCases: dto.testCases as any,
         timeoutMs: dto.codeConfig?.timeoutMs || 5000,
+        priority: 'normal',
       });
 
       return {
@@ -511,13 +515,14 @@ export class CodeChallengeAdminService {
     }
 
     try {
-      const testResults = await this.gradingService.runCodeTests({
+      const testResults = await this.codeExecutionService.executeCode({
         code: solutionCode,
         language: trackLanguage as any,
         runtime: runtime as any,
         entryFunction: codeConfig.entryFunction,
         testCases: challenge.testCases as any,
         timeoutMs: codeConfig.timeoutMs || 5000,
+        priority: 'normal',
       });
 
       if (!testResults.overallPassed) {

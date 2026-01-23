@@ -16,6 +16,8 @@ import {
   UpdateUserDto,
   CreateUserDto,
   UserResponseDto,
+  UpdateProfileDto,
+  UpdatePreferencesDto,
 } from './dto/user.dto';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 
@@ -247,6 +249,108 @@ export class UserService {
   }
 
   /**
+   * Update own profile (user updating themselves)
+   */
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<UserResponseDto> {
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check email uniqueness if being changed
+    if (dto.email && dto.email.toLowerCase() !== user.email) {
+      const existingUser = await this.userModel.findOne({
+        email: dto.email.toLowerCase(),
+        _id: { $ne: userId },
+      });
+      if (existingUser) {
+        throw new ConflictException('Email already exists');
+      }
+    }
+
+    // Prepare update
+    const updateData: any = {};
+    if (dto.email) updateData.email = dto.email.toLowerCase();
+    if (dto.firstName) updateData.firstName = dto.firstName.trim();
+    if (dto.lastName) updateData.lastName = dto.lastName.trim();
+
+    if (Object.keys(updateData).length === 0) {
+      return this.formatUserResponse(user.toObject());
+    }
+
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(userId, { $set: updateData }, { new: true, runValidators: true })
+      .select('-hashedPassword -ssoToken')
+      .lean();
+
+    if (!updatedUser) {
+      throw new NotFoundException('User not found after update');
+    }
+
+    return this.formatUserResponse(updatedUser);
+  }
+
+  /**
+   * Get user preferences
+   */
+  async getPreferences(userId: string): Promise<any> {
+    const user = await this.userModel
+      .findById(userId)
+      .select('preferences')
+      .lean();
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user.preferences || {
+      theme: 'system',
+      emailNotifications: true,
+      testReminders: true,
+      codeEditorFontSize: 14,
+      codeEditorTheme: 'vs-dark',
+    };
+  }
+
+  /**
+   * Update user preferences
+   */
+  async updatePreferences(
+    userId: string,
+    dto: UpdatePreferencesDto,
+  ): Promise<any> {
+    const user = await this.userModel.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Merge with existing preferences
+    const currentPrefs = user.preferences || {};
+    const newPrefs = {
+      ...currentPrefs,
+      ...Object.fromEntries(
+        Object.entries(dto).filter(([_, v]) => v !== undefined)
+      ),
+    };
+
+    const updatedUser = await this.userModel
+      .findByIdAndUpdate(
+        userId,
+        { $set: { preferences: newPrefs } },
+        { new: true, runValidators: true }
+      )
+      .select('preferences')
+      .lean();
+
+    return updatedUser?.preferences || newPrefs;
+  }
+
+  /**
    * Search users by name (for autocomplete/search features)
    */
   async searchUsers(
@@ -326,6 +430,7 @@ export class UserService {
       organizationId: user.organizationId.toString(),
       role: user.role,
       isSSO: user.isSSO,
+      preferences: user.preferences,
       createdAt: user.createdAt,
       updatedAt: user.updatedAt,
     };

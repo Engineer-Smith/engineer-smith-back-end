@@ -3,9 +3,12 @@ import {
   IsString,
   IsOptional,
   IsNumber,
+  IsBoolean,
   Min,
+  Max,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -90,3 +93,49 @@ export class InviteCodeValidationResponseDto {
   _id: string;
   name: string;
 }
+
+/**
+ * DTO for organization settings
+ */
+export class OrganizationSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  allowSelfRegistration?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(10)
+  defaultStudentAttemptsPerTest?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(30)
+  testGracePeriodMinutes?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  requireEmailVerification?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  allowInstructorTestCreation?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  @Max(500)
+  maxQuestionsPerTest?: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(5)
+  @Max(480)
+  defaultTestTimeLimit?: number;
+}
+
+/**
+ * DTO for updating organization settings
+ */
+export class UpdateOrganizationSettingsDto extends OrganizationSettingsDto {}

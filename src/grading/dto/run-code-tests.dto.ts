@@ -25,6 +25,8 @@ export enum Language {
   PYTHON = 'python',
   SQL = 'sql',
   DART = 'dart',
+  SWIFT = 'swift',
+  SWIFTUI = 'swiftui',
   REACT = 'react',
   REACT_NATIVE = 'reactNative',
   FLUTTER = 'flutter',
