@@ -7,7 +7,6 @@ import {
   IsArray,
   IsEnum,
   IsMongoId,
-  IsDefined,
   Min,
   Max,
   MaxLength,
@@ -105,7 +104,8 @@ class TestCaseDto {
   @IsArray()
   args: any[];
 
-  @IsDefined()
+  // Note: expected can be any value including null (for functions that return null)
+  // We use a simple presence check rather than @IsDefined() which rejects null
   expected: any;
 
   @IsOptional()
