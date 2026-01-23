@@ -5,6 +5,7 @@ import { UserController } from './user.controller';
 import { UserService } from './user.service';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Organization, OrganizationSchema } from '../schemas/organization.schema';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 
 @Module({
   imports: [
@@ -14,7 +15,7 @@ import { Organization, OrganizationSchema } from '../schemas/organization.schema
     ]),
   ],
   controllers: [UserController],
-  providers: [UserService],
+  providers: [UserService, OrganizationGuard],
   exports: [UserService],
 })
 export class UserModule {}

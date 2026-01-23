@@ -10,8 +10,12 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { UserService } from './user.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -24,6 +28,7 @@ import {
 } from './dto/user.dto';
 
 @Controller('users')
+@UseGuards(JwtAuthGuard, OrganizationGuard, RolesGuard)
 export class UserController {
   constructor(private readonly userService: UserService) {}
 

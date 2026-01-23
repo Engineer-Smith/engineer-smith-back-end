@@ -7,6 +7,7 @@ import { SessionManagerService } from './services/session-manager.service';
 import { QuestionHandlerService } from './services/question-handler.service';
 import { SnapshotService } from './services/snapshot.service';
 import { TimerService } from './services/timer.service';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 import { TestSession, TestSessionSchema } from '../schemas/test-session.schema';
 import { Test, TestSchema } from '../schemas/test.schema';
 import { Question, QuestionSchema } from '../schemas/question.schema';
@@ -34,6 +35,7 @@ import { GradingModule } from '../grading/grading.module';
     QuestionHandlerService,
     SnapshotService,
     TimerService,
+    OrganizationGuard,
   ],
   exports: [
     TestSessionService,

@@ -8,7 +8,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { Question, QuestionDocument } from '../../schemas/question.schema';
 import { Organization, OrganizationDocument } from '../../schemas/organization.schema';
-import { CreateQuestionDto, UpdateQuestionDto, QuestionFiltersDto, ImportQuestionsDto, ImportResultDto } from '../dto';
+import { CreateQuestionDto, UpdateQuestionDto, QuestionFiltersDto, ImportQuestionsDto, ImportResultDto, CheckDuplicatesDto } from '../dto';
 import { QuestionValidationService } from './question-validation.service';
 import { QuestionFormatterService } from './question-formatter.service';
 import type { RequestUser } from '../../auth/interfaces/jwt-payload.interface';
@@ -351,6 +351,65 @@ export class QuestionService {
         limit: filters.limit || 10,
         total,
         returned: questions.length,
+      },
+    };
+  }
+
+  /**
+   * Check for duplicate questions based on search criteria
+   */
+  async checkDuplicates(searchParams: CheckDuplicatesDto, user: RequestUser) {
+    const query: any = {};
+
+    // Build search query - check for similar questions
+    if (searchParams.type) query.type = searchParams.type;
+    if (searchParams.language) query.language = searchParams.language;
+    if (searchParams.category) query.category = searchParams.category;
+
+    // Title similarity check (case-insensitive partial match)
+    if (searchParams.title) {
+      query.title = { $regex: searchParams.title, $options: 'i' };
+    }
+
+    // Entry function exact match (for code challenges)
+    if (searchParams.entryFunction) {
+      query['codeConfig.entryFunction'] = searchParams.entryFunction;
+    }
+
+    // Scope to user's accessible questions (own org + global)
+    const isSuperOrgAdmin = user.isSuperOrgAdmin;
+    if (!isSuperOrgAdmin) {
+      query.$or = [
+        { organizationId: user.organizationId },
+        { isGlobal: true },
+      ];
+    }
+
+    const duplicates = await this.questionModel
+      .find(query)
+      .select('_id title type language category difficulty status isGlobal')
+      .limit(20)
+      .lean();
+
+    return {
+      found: duplicates.length > 0,
+      count: duplicates.length,
+      duplicates: duplicates.map((q) => ({
+        _id: q._id,
+        title: q.title,
+        type: q.type,
+        language: q.language,
+        category: q.category,
+        difficulty: q.difficulty,
+        status: q.status,
+        isGlobal: q.isGlobal,
+      })),
+      searchParams: {
+        title: searchParams.title,
+        type: searchParams.type,
+        language: searchParams.language,
+        category: searchParams.category,
+        entryFunction: searchParams.entryFunction,
       },
     };
   }

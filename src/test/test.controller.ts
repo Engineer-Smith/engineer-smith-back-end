@@ -15,13 +15,14 @@ import {
 import { TestService } from './services/test.service';
 import { CreateTestDto, UpdateTestDto, TestFiltersDto } from './dto/test.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
 
 @Controller('tests')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, OrganizationGuard, RolesGuard)
 export class TestController {
   constructor(private readonly testService: TestService) {}
 

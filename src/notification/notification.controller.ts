@@ -1,4 +1,3 @@
-
 // src/notification/notification.controller.ts
 import {
   Controller,
@@ -11,8 +10,12 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { NotificationService } from './notification.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -24,6 +27,7 @@ import {
 } from './dto/notification.dto';
 
 @Controller('notifications')
+@UseGuards(JwtAuthGuard, OrganizationGuard, RolesGuard)
 export class NotificationController {
   constructor(private readonly notificationService: NotificationService) {}
 

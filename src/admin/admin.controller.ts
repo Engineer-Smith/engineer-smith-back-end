@@ -10,8 +10,12 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { AdminService } from './admin.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -23,6 +27,7 @@ import {
 } from './dto/admin.dto';
 
 @Controller('admin')
+@UseGuards(JwtAuthGuard, OrganizationGuard, RolesGuard)
 export class AdminController {
   constructor(private readonly adminService: AdminService) {}
 

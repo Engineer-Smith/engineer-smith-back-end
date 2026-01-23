@@ -10,8 +10,11 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { CodeChallengeAdminService } from './code-challenge-admin.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequireSuperOrg } from '../auth/decorators/super-org.decorator';
 import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
@@ -29,6 +32,7 @@ import {
 } from './dto/code-challenge.dto';
 
 @Controller('code-challenges/admin')
+@UseGuards(JwtAuthGuard, OrganizationGuard)
 @RequireSuperOrg()
 export class CodeChallengeAdminController {
   constructor(private readonly adminService: CodeChallengeAdminService) {}

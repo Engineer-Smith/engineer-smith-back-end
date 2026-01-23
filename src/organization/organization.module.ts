@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { OrganizationController } from './organization.controller';
 import { OrganizationService } from './organization.service';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 import { Organization, OrganizationSchema } from '../schemas/organization.schema';
 
 @Module({
@@ -12,7 +13,7 @@ import { Organization, OrganizationSchema } from '../schemas/organization.schema
     ]),
   ],
   controllers: [OrganizationController],
-  providers: [OrganizationService],
+  providers: [OrganizationService, OrganizationGuard],
   exports: [OrganizationService],
 })
 export class OrganizationModule {}

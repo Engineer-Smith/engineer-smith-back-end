@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { REQUIRE_SUPER_ORG_KEY } from '../decorators/super-org.decorator';
+import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { Organization, OrganizationDocument } from '../../schemas/organization.schema';
 
 @Injectable()
@@ -18,11 +19,22 @@ export class OrganizationGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // Skip for public routes
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+
+    if (isPublic) {
+      return true;
+    }
+
     const request = context.switchToHttp().getRequest();
     const { user } = request;
 
+    // If no user, let JwtAuthGuard handle it (or skip if it already passed for public route)
     if (!user) {
-      throw new ForbiddenException('User not authenticated');
+      return true; // Let other guards handle authentication
     }
 
     if (!user.organizationId) {

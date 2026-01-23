@@ -64,7 +64,14 @@ export class AuthService {
     this.jwtSecret = jwtSecret;
     this.jwtRefreshSecret = jwtRefreshSecret;
     this.ssoSharedSecret = this.configService.get<string>('SSO_SHARED_SECRET') || '';
-    this.frontendUrl = this.configService.get<string>('FRONTEND_URL') || 'http://localhost:5173';
+
+    const frontendUrl = this.configService.get<string>('FRONTEND_URL');
+    if (!frontendUrl) {
+      this.logger.warn('FRONTEND_URL not set - using localhost default (dev only)');
+      this.frontendUrl = 'http://localhost:5173';
+    } else {
+      this.frontendUrl = frontendUrl;
+    }
   }
 
   /**
@@ -568,9 +575,9 @@ export class AuthService {
       // Generate tokens
       const tokens = this.generateTokens(user);
 
-      // Build redirect URL
+      // Build redirect URL (with open redirect protection)
       let redirectUrl: string;
-      if (redirect && redirect.startsWith('/')) {
+      if (redirect && this.isValidRedirectPath(redirect)) {
         redirectUrl = `${this.frontendUrl}${redirect}`;
       } else {
         redirectUrl = `${this.frontendUrl}/dashboard${isNewUser ? '?welcome=true' : ''}`;
@@ -589,5 +596,37 @@ export class AuthService {
         error: 'sso_failed',
       };
     }
+  }
+
+  /**
+   * Validate redirect path to prevent open redirect attacks
+   * Only allows relative paths starting with / but not //
+   */
+  private isValidRedirectPath(redirect: string): boolean {
+    if (!redirect || typeof redirect !== 'string') {
+      return false;
+    }
+
+    // Must start with single /
+    if (!redirect.startsWith('/')) {
+      return false;
+    }
+
+    // Block protocol-relative URLs (//evil.com)
+    if (redirect.startsWith('//')) {
+      return false;
+    }
+
+    // Block any URL with protocol (http:, https:, javascript:, etc.)
+    if (/^\/.*:/.test(redirect) || redirect.includes('://')) {
+      return false;
+    }
+
+    // Block encoded characters that could bypass checks
+    if (redirect.includes('%2f') || redirect.includes('%2F')) {
+      return false;
+    }
+
+    return true;
   }
 }

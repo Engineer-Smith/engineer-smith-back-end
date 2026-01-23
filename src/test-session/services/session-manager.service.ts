@@ -723,7 +723,7 @@ export class SessionManagerService {
         expiredSessionsHandled: expiredCount,
       };
     } catch (error) {
-      console.error('Error checking for expired sessions:', error);
+      this.logger.error('Error checking for expired sessions:', error);
       return { success: false, error: (error as Error).message };
     }
   }

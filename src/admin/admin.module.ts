@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AdminController } from './admin.controller';
 import { AdminService } from './admin.service';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Organization, OrganizationSchema } from '../schemas/organization.schema';
 import { Question, QuestionSchema } from '../schemas/question.schema';
@@ -27,7 +28,7 @@ import {
     ]),
   ],
   controllers: [AdminController],
-  providers: [AdminService],
+  providers: [AdminService, OrganizationGuard],
   exports: [AdminService],
 })
 export class AdminModule {}

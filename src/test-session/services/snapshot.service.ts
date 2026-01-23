@@ -1,10 +1,11 @@
 // src/test-session/services/snapshot.service.ts
-import { Injectable, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { Injectable, ForbiddenException, BadRequestException, Logger } from '@nestjs/common';
 import { TestDocument } from '../../schemas/test.schema';
 import type { RequestUser } from '../../auth/interfaces/jwt-payload.interface';
 
 @Injectable()
 export class SnapshotService {
+  private readonly logger = new Logger(SnapshotService.name);
   /**
    * Create seeded random number generator for consistent shuffling
    */
@@ -99,13 +100,13 @@ export class SnapshotService {
 
         // Validation warnings
         if (!questionData.codeConfig.entryFunction) {
-          console.error(`ERROR: Logic code challenge ${question._id} missing entryFunction!`);
+          this.logger.error(`Logic code challenge ${question._id} missing entryFunction`);
         }
         if (!questionData.codeConfig.runtime) {
-          console.error(`ERROR: Logic code challenge ${question._id} missing runtime!`);
+          this.logger.error(`Logic code challenge ${question._id} missing runtime`);
         }
         if (!questionData.testCases || questionData.testCases.length === 0) {
-          console.error(`ERROR: Logic code challenge ${question._id} missing test cases!`);
+          this.logger.error(`Logic code challenge ${question._id} missing test cases`);
         }
       } else if (question.category === 'ui' || question.category === 'syntax') {
         questionData.solutionCode = question.solutionCode || '';

@@ -287,17 +287,7 @@ export class QuestionController {
     @Query() searchParams: CheckDuplicatesDto,
     @CurrentUser() user: RequestUser,
   ) {
-    // TODO: Implement duplicate detection service
-    return {
-      found: false,
-      count: 0,
-      duplicates: [],
-      searchParams: {
-        type: searchParams.type,
-        language: searchParams.language,
-        category: searchParams.category,
-      },
-    };
+    return this.questionService.checkDuplicates(searchParams, user);
   }
 
   /**

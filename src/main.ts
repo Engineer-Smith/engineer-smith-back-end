@@ -32,11 +32,14 @@ async function bootstrap() {
   // Cookie parser for auth cookies
   app.use(cookieParser());
 
-  // CORS configuration (matching your current setup)
-  const allowedOrigins = process.env.CORS_ORIGINS?.split(',') || [
-    'http://localhost:3000',
-    'http://localhost:5173',
-  ];
+  // CORS configuration
+  // In production, set CORS_ORIGINS environment variable (comma-separated)
+  const allowedOrigins = process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || [];
+
+  if (allowedOrigins.length === 0) {
+    logger.warn('CORS_ORIGINS not set - using localhost defaults (dev only)');
+    allowedOrigins.push('http://localhost:3000', 'http://localhost:5173');
+  }
 
   app.enableCors({
     origin: (origin, callback) => {

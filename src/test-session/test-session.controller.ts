@@ -25,6 +25,7 @@ import {
   TestSessionFiltersDto,
 } from './dto/test-session.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -37,7 +38,7 @@ import type { RequestUser } from '../auth/interfaces/jwt-payload.interface';
  * is not available (e.g., due to firewall restrictions).
  */
 @Controller('test-sessions')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, OrganizationGuard, RolesGuard)
 export class TestSessionController {
   private readonly logger = new Logger(TestSessionController.name);
 

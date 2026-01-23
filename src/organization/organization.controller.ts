@@ -10,8 +10,12 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
 import { OrganizationService } from './organization.service';
+import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { RequireSuperOrg } from '../auth/decorators/super-org.decorator';
@@ -26,6 +30,7 @@ import {
 } from './dto/organization.dto';
 
 @Controller('organizations')
+@UseGuards(JwtAuthGuard, OrganizationGuard, RolesGuard)
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 

@@ -4,9 +4,11 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { GatewayModule } from '../gateway/gateway.module';
 import { NotificationController } from './notification.controller';
 import { NotificationService } from './notification.service';
+import { OrganizationGuard } from '../auth/guards/organization.guard';
 import { Notification, NotificationSchema } from '../schemas/notification.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Test, TestSchema } from '../schemas/test.schema';
+import { Organization, OrganizationSchema } from '../schemas/organization.schema';
 import { AttemptRequest, AttemptRequestSchema } from '../schemas/attempt-request.schema';
 import {
   StudentTestOverride,
@@ -19,13 +21,14 @@ import {
       { name: Notification.name, schema: NotificationSchema },
       { name: User.name, schema: UserSchema },
       { name: Test.name, schema: TestSchema },
+      { name: Organization.name, schema: OrganizationSchema },
       { name: AttemptRequest.name, schema: AttemptRequestSchema },
       { name: StudentTestOverride.name, schema: StudentTestOverrideSchema },
     ]),
     forwardRef(() => GatewayModule),
   ],
   controllers: [NotificationController],
-  providers: [NotificationService],
+  providers: [NotificationService, OrganizationGuard],
   exports: [NotificationService],
 })
 export class NotificationModule {}
