@@ -38,7 +38,7 @@ import { TagsModule } from './tags/tags.module';
       ? [
           ServeStaticModule.forRoot({
             rootPath: join(__dirname, '..', 'dashboard', 'dist'),
-            exclude: ['/api/(.*)'],
+            exclude: ['/api/{*path}'],
           }),
         ]
       : []),
