@@ -627,7 +627,7 @@ class SocketService {
     if (cookieMatch) {
       return cookieMatch[1];
     }
-    return localStorage.getItem('accessToken') || null;
+    return null;
   }
 }
 

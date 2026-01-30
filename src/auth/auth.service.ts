@@ -131,7 +131,14 @@ export class AuthService {
       isSSO: false,
     });
 
-    await user.save();
+    try {
+      await user.save();
+    } catch (error: any) {
+      if (error.code === 11000) {
+        throw new ConflictException('Username or email already exists');
+      }
+      throw error;
+    }
 
     // Generate tokens for auto-login
     const tokens = this.generateTokens(user);

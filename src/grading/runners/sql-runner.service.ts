@@ -277,8 +277,10 @@ export class SqlRunnerService {
    * Validate that query contains only a single statement
    */
   private validateSingleStatement(query: string): void {
-    // Remove string literals to avoid false positives
+    // Remove comments and string literals to avoid false positives
     const withoutStrings = query
+      .replace(/--[^\n]*/g, '')           // Remove -- line comments
+      .replace(/\/\*[\s\S]*?\*\//g, '')   // Remove /* block comments */
       .replace(/'[^']*'/g, '')
       .replace(/"[^"]*"/g, '');
 

@@ -31,8 +31,17 @@ const isValidObjectId = (id: string): boolean => {
 
 @WebSocketGateway({
   cors: {
-    // Allow all origins - let the app work without WebSocket if needed
-    origin: '*',
+    origin: (origin: string, callback: (err: Error | null, allow?: boolean) => void) => {
+      const allowedOrigins = process.env.CORS_ORIGINS?.split(',').map(o => o.trim()) || [
+        'http://localhost:3000',
+        'http://localhost:5173',
+      ];
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     methods: ['GET', 'POST', 'PATCH', 'DELETE'],
     credentials: true,
   },
@@ -77,10 +86,9 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
         (socket.handshake.query?.token as string);
 
       if (!token) {
-        // Don't log as error - user might just be browsing without auth
-        this.logger.debug('Socket connection without token - allowing limited access');
-        // Allow connection but mark as unauthenticated
-        socket.emit('connection:status', { authenticated: false });
+        this.logger.debug('Socket connection without token - disconnecting');
+        socket.emit('connection:status', { authenticated: false, reason: 'no_token' });
+        socket.disconnect(true);
         return;
       }
 
@@ -107,9 +115,9 @@ export class AppGateway implements OnGatewayInit, OnGatewayConnection, OnGateway
         socket.emit('connection:status', { authenticated: true, userId: socket.userId });
         this.logger.log(`Client connected: ${socket.id} (User: ${socket.userId})`);
       } catch (tokenError) {
-        // Token invalid/expired - still allow connection for public features
         this.logger.debug(`Socket connection with invalid token: ${tokenError.message}`);
         socket.emit('connection:status', { authenticated: false, reason: 'invalid_token' });
+        socket.disconnect(true);
       }
     } catch (error) {
       // Catch-all - never crash on connection

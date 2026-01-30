@@ -11,6 +11,7 @@ import {
   HttpStatus,
   BadRequestException,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import type { Response, Request } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { AuthService } from './auth.service';
@@ -38,6 +39,7 @@ export class AuthController {
    * POST /auth/register - Public route
    */
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
@@ -57,6 +59,7 @@ export class AuthController {
    * POST /auth/login - Public route
    */
   @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   @HttpCode(HttpStatus.OK)
   async login(
@@ -77,6 +80,7 @@ export class AuthController {
    * POST /auth/refresh-token - Public route
    */
   @Public()
+  @Throttle({ default: { limit: 10, ttl: 60000 } })
   @Post('refresh-token')
   @HttpCode(HttpStatus.OK)
   async refreshToken(

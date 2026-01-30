@@ -183,7 +183,7 @@ def run_tests():
                 'error': 'Function "${entryFunction}" not found'
             }
 
-        func = eval('${entryFunction}')
+        func = globals()['${entryFunction}']
         if not callable(func):
             return {
                 'results': [],

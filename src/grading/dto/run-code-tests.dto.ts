@@ -7,6 +7,7 @@ import {
   ValidateNested,
   Min,
   IsBoolean,
+  Matches,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 
@@ -86,6 +87,9 @@ export class RunCodeTestsDto {
 
   @IsOptional()
   @IsString()
+  @Matches(/^[a-zA-Z_][a-zA-Z0-9_]*$/, {
+    message: 'entryFunction must be a valid function name',
+  })
   entryFunction?: string;
 
   @IsOptional()
