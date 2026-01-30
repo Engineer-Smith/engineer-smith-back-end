@@ -83,7 +83,7 @@ class ApiService {
 
             if (refreshResponse.status === 200) {
               if (refreshResponse.data.csrfToken) {
-                document.cookie = `csrfToken=${refreshResponse.data.csrfToken}; path=/; SameSite=Strict; ${import.meta.env.VITE_NODE_ENV === 'production' ? 'Secure' : ''}`;
+                document.cookie = `csrfToken=${refreshResponse.data.csrfToken}; path=/; SameSite=Strict; ${import.meta.env.PROD ? 'Secure' : ''}`;
               }
               await new Promise((resolve) => setTimeout(resolve, 100));
               error.config.headers['X-CSRF-Token'] = refreshResponse.data.csrfToken || this.getCsrfToken();
