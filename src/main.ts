@@ -76,9 +76,7 @@ async function bootstrap() {
   );
 
   // Global prefix - all API routes served under /api/...
-  app.setGlobalPrefix('api', {
-    exclude: ['/'],
-  });
+  app.setGlobalPrefix('api');
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

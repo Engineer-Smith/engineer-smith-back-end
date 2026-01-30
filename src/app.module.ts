@@ -6,8 +6,6 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
 import { join } from 'path';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { GradingModule } from './grading';
 import { AuthModule } from './auth/auth.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
@@ -104,9 +102,8 @@ import { TagsModule } from './tags/tags.module';
     NotificationModule,
     GatewayModule, // WebSocket gateway for real-time features
   ],
-  controllers: [AppController],
+  controllers: [],
   providers: [
-    AppService,
     // Apply JWT auth guard globally
     {
       provide: APP_GUARD,
