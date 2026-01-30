@@ -1,0 +1,43 @@
+/* styles/questionBank.css */
+.transition-hover {
+  transition: all 0.2s ease-in-out;
+}
+
+.transition-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.border-dashed {
+  border: 2px dashed #dee2e6 !important;
+}
+
+.border-dashed:hover {
+  border-color: #28a745 !important;
+}
+
+.icon-xs {
+  width: 12px;
+  height: 12px;
+}
+
+.icon-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.icon-md {
+  width: 20px;
+  height: 20px;
+}
+
+.icon-lg {
+  width: 24px;
+  height: 24px;
+}
+
+.question-bank-container {
+  background-color: #f8f9fa;
+  min-height: 100vh;
+  margin-top: 20px;
+}

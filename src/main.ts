@@ -27,7 +27,10 @@ async function bootstrap() {
   });
 
   // Security middleware
-  app.use(helmet());
+  app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  }));
 
   // Cookie parser for auth cookies
   app.use(cookieParser());
@@ -72,8 +75,10 @@ async function bootstrap() {
     }),
   );
 
-  // Global prefix (optional - remove if you don't want /api prefix)
-  // app.setGlobalPrefix('api');
+  // Global prefix - all API routes served under /api/...
+  app.setGlobalPrefix('api', {
+    exclude: ['/'],
+  });
 
   const port = process.env.PORT || 3000;
   await app.listen(port);

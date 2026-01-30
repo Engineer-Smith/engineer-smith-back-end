@@ -1,9 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { GradingModule } from './grading';
@@ -30,6 +32,16 @@ import { TagsModule } from './tags/tags.module';
       isGlobal: true,
       envFilePath: ['.env.local', '.env'],
     }),
+
+    // Serve dashboard static files in production
+    ...(process.env.NODE_ENV === 'production'
+      ? [
+          ServeStaticModule.forRoot({
+            rootPath: join(__dirname, '..', 'dashboard', 'dist'),
+            exclude: ['/api/(.*)'],
+          }),
+        ]
+      : []),
 
     // MongoDB connection
     MongooseModule.forRootAsync({
