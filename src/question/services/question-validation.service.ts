@@ -32,11 +32,14 @@ export class QuestionValidationService {
   ): Promise<void> {
     if (mode === 'create') {
       await this.validateBasicFields(questionData as CreateQuestionDto);
+      await this.validateTypeSpecificFields(questionData);
     } else {
       await this.validateUpdatedFields(questionData as UpdateQuestionDto);
+      // Skip full type-specific validation for updates — the DTO validates
+      // individual fields, and Mongoose runValidators handles schema constraints.
+      // Running type-specific validation on partial updates causes false 400s
+      // when the update payload doesn't include every required type-specific field.
     }
-
-    await this.validateTypeSpecificFields(questionData);
   }
 
   /**

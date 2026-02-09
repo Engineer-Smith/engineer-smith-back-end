@@ -120,7 +120,7 @@ export class QuestionService {
     // Validate permissions
     await this.validateQuestionUpdateAccess(question, user);
 
-    // Validate update data
+    // Validate update data (basic field validation only)
     await this.validationService.validateQuestionData(updateData, 'update');
 
     // Remove undefined fields

@@ -44,8 +44,9 @@ export class TestCaseDto {
   @IsOptional()
   expected?: any;
 
+  @IsOptional()
   @IsBoolean()
-  hidden: boolean;
+  hidden?: boolean;
 
   // SQL-specific
   @IsOptional()

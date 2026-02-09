@@ -33,17 +33,6 @@ export class QuestionFormatterService {
       updatedAt: question.updatedAt,
     };
 
-    // Always include code-related fields
-    if (question.codeTemplate) {
-      baseResponse.codeTemplate = question.codeTemplate;
-    }
-    if (question.buggyCode) {
-      baseResponse.buggyCode = question.buggyCode;
-    }
-    if (question.codeConfig) {
-      baseResponse.codeConfig = question.codeConfig;
-    }
-
     // Type-specific fields
     switch (question.type) {
       case 'multipleChoice':
@@ -55,7 +44,7 @@ export class QuestionFormatterService {
         break;
 
       case 'fillInTheBlank':
-        baseResponse.codeTemplate = question.codeTemplate;
+        baseResponse.codeTemplate = question.codeTemplate ?? '';
         if (includeAnswers) {
           baseResponse.blanks = question.blanks;
         } else {
@@ -71,8 +60,8 @@ export class QuestionFormatterService {
         break;
 
       case 'dragDropCloze':
-        baseResponse.codeTemplate = question.codeTemplate;
-        baseResponse.dragOptions = question.dragOptions;
+        baseResponse.codeTemplate = question.codeTemplate ?? '';
+        baseResponse.dragOptions = question.dragOptions || [];
         if (includeAnswers) {
           baseResponse.blanks = question.blanks;
         } else {
@@ -87,14 +76,29 @@ export class QuestionFormatterService {
         break;
 
       case 'codeChallenge':
-      case 'codeDebugging':
+        baseResponse.codeTemplate = question.codeTemplate ?? '';
+        baseResponse.codeConfig = question.codeConfig || null;
         if (includeAnswers) {
-          baseResponse.testCases = question.testCases;
-          if (question.solutionCode) {
-            baseResponse.solutionCode = question.solutionCode;
-          }
+          baseResponse.testCases = question.testCases || [];
         } else {
-          // For students, only show visible test cases
+          baseResponse.testCases = question.testCases
+            ?.filter((tc: any) => !tc.hidden)
+            .map((tc: any) => ({
+              name: tc.name,
+              args: tc.args,
+              expected: tc.expected,
+              hidden: tc.hidden,
+            }));
+        }
+        break;
+
+      case 'codeDebugging':
+        baseResponse.buggyCode = question.buggyCode ?? '';
+        baseResponse.solutionCode = question.solutionCode ?? '';
+        baseResponse.codeConfig = question.codeConfig || null;
+        if (includeAnswers) {
+          baseResponse.testCases = question.testCases || [];
+        } else {
           baseResponse.testCases = question.testCases
             ?.filter((tc: any) => !tc.hidden)
             .map((tc: any) => ({

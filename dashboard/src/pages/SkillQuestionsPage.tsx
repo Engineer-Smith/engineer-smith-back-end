@@ -21,7 +21,9 @@ import {
   GripVertical,
   TestTube,
   FileText,
-  Layers
+  Layers,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react';
 import { skills } from '../config/skills';
 import type { Question, QuestionType, QuestionCategory } from '../types';
@@ -133,6 +135,9 @@ const SkillQuestionsPage: React.FC = () => {
   const [deleteModal, setDeleteModal] = useState(false);
   const [questionToDelete, setQuestionToDelete] = useState<{ id: string; title: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
+
+  // Status toggle state
+  const [togglingStatus, setTogglingStatus] = useState<string | null>(null);
 
   // Find skill configuration
   const skill = skills.find(s => s.skill === skillName);
@@ -282,6 +287,21 @@ const SkillQuestionsPage: React.FC = () => {
   const cancelDelete = () => {
     setDeleteModal(false);
     setQuestionToDelete(null);
+  };
+
+  const handleToggleStatus = async (questionId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'draft' ? 'active' : 'draft';
+    try {
+      setTogglingStatus(questionId);
+      await apiService.updateQuestion(questionId, { status: newStatus as any });
+      setQuestions(prev =>
+        prev.map(q => q._id === questionId ? { ...q, status: newStatus as any } : q)
+      );
+    } catch (error: any) {
+      alert('Error updating status: ' + error.message);
+    } finally {
+      setTogglingStatus(null);
+    }
   };
 
   const clearAllFilters = () => {
@@ -543,7 +563,23 @@ const SkillQuestionsPage: React.FC = () => {
                       <Layers className="w-3 h-3" />
                       {question.language}
                     </span>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
+                      {question.status !== 'archived' && (
+                        <button
+                          onClick={() => handleToggleStatus(question._id, question.status)}
+                          disabled={togglingStatus === question._id}
+                          className={`p-1.5 rounded transition-colors ${question.status === 'active' ? 'text-green-400 hover:bg-green-500/10' : 'text-[#6b6b70] hover:bg-[#2a2a2e]'}`}
+                          title={question.status === 'draft' ? 'Activate Question' : 'Revert to Draft'}
+                        >
+                          {togglingStatus === question._id ? (
+                            <div className="spinner w-4 h-4" />
+                          ) : question.status === 'active' ? (
+                            <ToggleRight className="w-4 h-4" />
+                          ) : (
+                            <ToggleLeft className="w-4 h-4" />
+                          )}
+                        </button>
+                      )}
                       <button onClick={() => handleViewQuestion(question._id)} className="p-1.5 hover:bg-[#2a2a2e] rounded transition-colors text-blue-400" title="View Question"><Eye className="w-4 h-4" /></button>
                       <button onClick={() => handleEditQuestion(question._id)} className="p-1.5 hover:bg-[#2a2a2e] rounded transition-colors text-[#6b6b70] hover:text-[#f5f5f4]" title="Edit Question"><Edit className="w-4 h-4" /></button>
                       <button onClick={() => handleDeleteQuestion(question._id, question.title)} className="p-1.5 hover:bg-red-500/10 rounded transition-colors text-red-400" title="Delete Question"><Trash2 className="w-4 h-4" /></button>
