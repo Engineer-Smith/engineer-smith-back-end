@@ -208,7 +208,9 @@ export class GradingService {
           `Test case ${index + 1} must have 'args' and 'expected' properties`,
         );
       }
-      if (typeof testCase.hidden !== 'boolean') {
+      if (testCase.hidden === undefined) {
+        testCase.hidden = false;
+      } else if (typeof testCase.hidden !== 'boolean') {
         throw new BadRequestException(
           `Test case ${index + 1} must have a boolean 'hidden' property`,
         );

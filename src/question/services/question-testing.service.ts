@@ -121,7 +121,7 @@ export class QuestionTestingService {
       testCases: testCases.map((tc) => ({
         args: tc.args,
         expected: tc.expected,
-        hidden: tc.hidden,
+        hidden: tc.hidden ?? false,
         name: tc.name,
         schemaSql: tc.schemaSql,
         seedSql: tc.seedSql,
