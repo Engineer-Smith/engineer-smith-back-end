@@ -100,6 +100,7 @@ export default function EditTestPage() {
   const [showQuestionModal, setShowQuestionModal] = useState(false);
   const [availableQuestions, setAvailableQuestions] = useState<Question[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [typeFilter, setTypeFilter] = useState('');
   const [loadingQuestions, setLoadingQuestions] = useState(false);
 
   // Collapsible sections
@@ -190,10 +191,13 @@ export default function EditTestPage() {
     }
   };
 
-  const fetchAvailableQuestions = async () => {
+  const fetchAvailableQuestions = async (search?: string, type?: string) => {
     try {
       setLoadingQuestions(true);
-      const response = await apiService.getAllQuestions({ limit: 100, status: 'active' });
+      const params: Record<string, any> = { limit: 200 };
+      if (search) params.search = search;
+      if (type) params.type = type;
+      const response = await apiService.getAllQuestions(params);
       const questions = response.questions || [];
       // Filter out questions already in the test
       const filtered = questions.filter((q: Question) => !formData.questions.includes(q._id));
@@ -287,12 +291,16 @@ export default function EditTestPage() {
     setSectionsOpen(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const filteredAvailableQuestions = availableQuestions.filter(q =>
-    q.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    q.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    q.type.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    q.language?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Fetch questions when modal opens, and debounce filter changes
+  useEffect(() => {
+    if (!showQuestionModal) return;
+    const timer = setTimeout(() => {
+      fetchAvailableQuestions(searchQuery, typeFilter);
+    }, searchQuery || typeFilter ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [showQuestionModal, searchQuery, typeFilter]);
+
+  const filteredAvailableQuestions = availableQuestions;
 
   if (loading) {
     return (
@@ -538,8 +546,9 @@ export default function EditTestPage() {
             <div className="p-4">
               <button
                 onClick={() => {
+                  setSearchQuery('');
+                  setTypeFilter('');
                   setShowQuestionModal(true);
-                  fetchAvailableQuestions();
                 }}
                 className="btn-secondary w-full flex items-center justify-center gap-2 mb-4"
               >
@@ -628,7 +637,7 @@ export default function EditTestPage() {
               </button>
             </div>
 
-            <div className="p-4 border-b border-[#2a2a2e]">
+            <div className="p-4 border-b border-[#2a2a2e] space-y-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#6b6b70]" />
                 <input
@@ -639,6 +648,19 @@ export default function EditTestPage() {
                   className="input w-full pl-10"
                 />
               </div>
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="select w-full"
+              >
+                <option value="">All Types</option>
+                <option value="multipleChoice">Multiple Choice</option>
+                <option value="trueFalse">True/False</option>
+                <option value="fillInTheBlank">Fill in Blank</option>
+                <option value="dragDropCloze">Drag &amp; Drop</option>
+                <option value="codeChallenge">Code Challenge</option>
+                <option value="codeDebugging">Code Debugging</option>
+              </select>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
