@@ -127,6 +127,7 @@ export interface SubmitAnswerRequest {
   timeSpent?: number;
   action: 'submit' | 'skip'; // Server determines next action based on this
   skipReason?: string; // For analytics
+  questionIndex?: number; // For idempotency: must match server's currentQuestionIndex
 }
 
 // =====================

@@ -790,6 +790,7 @@ export const TestSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         answer: state.currentAnswer,
         timeSpent,
         action: 'submit',
+        questionIndex: state.questionState?.questionIndex,
       };
 
       const response: ServerActionResponse = await apiService.submitAnswer(state.sessionId, submitRequest);
@@ -826,6 +827,7 @@ export const TestSessionProvider: React.FC<{ children: React.ReactNode }> = ({ c
         timeSpent,
         action: 'skip',
         skipReason: reason,
+        questionIndex: state.questionState?.questionIndex,
       };
 
       const response: ServerActionResponse = await apiService.submitAnswer(state.sessionId, skipRequest);

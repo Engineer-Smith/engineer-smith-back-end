@@ -355,17 +355,23 @@ export class TestService {
   }
 
   private async validateQuestionsExist(testData: any, user: RequestUser): Promise<void> {
-    const questionIds = testData.settings?.useSections
+    const questionIds: string[] = testData.settings?.useSections
       ? testData.sections?.flatMap((section: any) =>
-          section.questions.map((q: any) => q.questionId),
+          section.questions.map((q: any) => q.questionId?.toString()),
         ) || []
-      : testData.questions?.map((q: any) => q.questionId) || [];
+      : testData.questions?.map((q: any) => q.questionId?.toString()) || [];
 
     if (questionIds.length === 0) return;
 
+    // Check for duplicate question IDs within the same test/section
+    const uniqueIds = new Set(questionIds);
+    if (uniqueIds.size !== questionIds.length) {
+      throw new BadRequestException('Duplicate question IDs found. Each question can only appear once in a test.');
+    }
+
     const foundQuestions = await this.questionModel.find({ _id: { $in: questionIds } });
     if (foundQuestions.length !== questionIds.length) {
-      throw new BadRequestException('Some question IDs are invalid');
+      throw new BadRequestException('Some question IDs are invalid or no longer exist');
     }
   }
 

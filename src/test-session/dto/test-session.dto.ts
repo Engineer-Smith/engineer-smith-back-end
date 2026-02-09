@@ -57,7 +57,12 @@ export class SubmitAnswerDto {
 
   @IsOptional()
   @IsString()
-  action?: string; // 'next', 'previous', 'skip', etc.
+  action?: string; // 'submit', 'skip', etc.
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  questionIndex?: number; // For idempotency: must match currentQuestionIndex
 }
 
 // Submit Test DTO

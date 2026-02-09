@@ -61,6 +61,22 @@ export class QuestionHandlerService {
       return { action: 'time_expired', message: 'Session time has expired' };
     }
 
+    // Idempotency check: if client sends questionIndex, verify it matches current.
+    // If mismatch, the server already advanced (previous response was lost) — return current state.
+    if (answerData.questionIndex !== undefined && answerData.questionIndex !== session.currentQuestionIndex) {
+      this.logger.warn(
+        `Idempotency mismatch: client sent questionIndex=${answerData.questionIndex}, ` +
+        `server at ${session.currentQuestionIndex}. Session: ${sessionId}. Returning current state.`
+      );
+      const currentQuestion = this.getQuestionAt(session, session.currentSectionIndex, session.currentQuestionIndex);
+      return {
+        action: 'next_question',
+        message: 'Already advanced past that question.',
+        questionState: this.buildQuestionState(session, currentQuestion),
+        navigationContext: this.buildNavigationContext(session),
+      };
+    }
+
     // Get current question
     const question = this.getQuestionAt(session, session.currentSectionIndex, session.currentQuestionIndex);
     if (!question) {
@@ -447,8 +463,9 @@ export class QuestionHandlerService {
       ? session.testSnapshot.sections?.[session.currentSectionIndex]?.questions || []
       : session.testSnapshot.questions || [];
 
+    // Match the grading logic: a question is unanswered if studentAnswer is null/undefined/empty string
     return questions.filter((q: any) =>
-      q.status !== 'answered' && q.studentAnswer === null
+      q.studentAnswer === null || q.studentAnswer === undefined || q.studentAnswer === ''
     ).length;
   }
 

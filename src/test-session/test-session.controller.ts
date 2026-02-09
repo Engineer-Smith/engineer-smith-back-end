@@ -180,6 +180,13 @@ export class TestSessionController {
     @CurrentUser() user: RequestUser,
   ) {
     await this.sessionManagerService.getSession(sessionId, user);
+
+    // Route skip actions to the dedicated skip handler
+    if (answerDto.action === 'skip') {
+      const result = await this.questionHandlerService.skipQuestion(sessionId);
+      return { success: true, ...result };
+    }
+
     const result = await this.questionHandlerService.submitAnswer(sessionId, answerDto);
 
     if (result.action === 'test_complete' || result.action === 'time_expired') {

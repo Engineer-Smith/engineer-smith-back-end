@@ -106,7 +106,7 @@ const QuestionAssignment: React.FC<WizardStepProps> = ({
       if (filterLanguage) {
         params.language = filterLanguage;
       } else if (testData.languages.length > 0) {
-        params.language = testData.languages[0];
+        params.language = testData.languages.join(',');
       }
 
       if (filterTag) {
