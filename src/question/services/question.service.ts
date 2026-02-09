@@ -515,6 +515,27 @@ export class QuestionService {
       query.tags = { $in: [filters.tag] };
     }
 
+    // Text search on title and description (runs last to combine with existing $and/$or)
+    if (filters.search) {
+      const escapedSearch = filters.search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const searchCondition = {
+        $or: [
+          { title: { $regex: escapedSearch, $options: 'i' } },
+          { description: { $regex: escapedSearch, $options: 'i' } },
+        ],
+      };
+
+      if (query.$and) {
+        query.$and.push(searchCondition);
+      } else if (query.$or) {
+        const visibilityOr = query.$or;
+        delete query.$or;
+        query.$and = [{ $or: visibilityOr }, searchCondition];
+      } else {
+        Object.assign(query, searchCondition);
+      }
+    }
+
     return query;
   }
 

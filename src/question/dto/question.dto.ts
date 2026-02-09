@@ -305,6 +305,10 @@ export class QuestionFiltersDto {
   organizationId?: string;
 
   @IsOptional()
+  @IsString()
+  search?: string;
+
+  @IsOptional()
   @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   isGlobal?: boolean;

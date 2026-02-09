@@ -123,14 +123,14 @@ export default function EditTestPage() {
       setError(null);
       const data = await apiService.getTestWithQuestions(testId) as any;
 
-      // Handle both flat and nested settings structures
-      const timeLimit = data.timeLimit ?? data.settings?.timeLimit ?? null;
-      const maxAttempts = data.maxAttempts ?? data.settings?.attemptsAllowed ?? -1;
-      const passingScore = data.passingScore ?? data.settings?.passingThreshold ?? 70;
-      const shuffleQuestions = data.shuffleQuestions ?? data.settings?.shuffleQuestions ?? false;
-      const showResults = data.showResults ?? data.settings?.showResultsImmediately ?? true;
-      const showAnswers = data.showAnswers ?? data.settings?.allowReview ?? false;
-      const difficulty = data.difficulty || 'medium';
+      // Read settings from the nested structure (matching backend schema)
+      const timeLimit = data.settings?.timeLimit ?? null;
+      const maxAttempts = data.settings?.attemptsAllowed >= 999 ? -1 : (data.settings?.attemptsAllowed ?? -1);
+      const passingScore = 70; // Not stored in backend, use default
+      const shuffleQuestions = data.settings?.shuffleQuestions ?? false;
+      const showResults = true; // Not stored in backend, use default
+      const showAnswers = false; // Not stored in backend, use default
+      const difficulty = 'medium'; // Not stored in backend, use default
 
       // Handle sectioned vs flat questions - both use same nested structure
       let questions: TestQuestion[] = [];
@@ -193,8 +193,8 @@ export default function EditTestPage() {
   const fetchAvailableQuestions = async () => {
     try {
       setLoadingQuestions(true);
-      const data = await apiService.getAllQuestions({ limit: 100 });
-      const questions = Array.isArray(data) ? data : (data as any).questions || [];
+      const response = await apiService.getAllQuestions({ limit: 100, status: 'active' });
+      const questions = response.questions || [];
       // Filter out questions already in the test
       const filtered = questions.filter((q: Question) => !formData.questions.includes(q._id));
       setAvailableQuestions(filtered);
@@ -217,22 +217,24 @@ export default function EditTestPage() {
       setError(null);
       setSuccessMessage(null);
 
-      // Build the update payload - API may accept flat or nested structure
-      const updatePayload = {
+      // Build the update payload matching backend UpdateTestDto structure
+      const updatePayload: Record<string, any> = {
         title: formData.title,
         description: formData.description,
         status: formData.status,
-        testType: formData.testType,
-        // Send as flat fields for backwards compatibility
-        difficulty: formData.difficulty,
-        timeLimit: formData.timeLimit,
-        passingScore: formData.passingScore,
-        maxAttempts: formData.maxAttempts,
-        shuffleQuestions: formData.shuffleQuestions,
-        showResults: formData.showResults,
-        showAnswers: formData.showAnswers,
+        settings: {
+          timeLimit: formData.timeLimit || 30,
+          attemptsAllowed: formData.maxAttempts <= 0 ? 999 : formData.maxAttempts,
+          shuffleQuestions: formData.shuffleQuestions,
+        },
         questions: formData.questions.map(qId => ({ questionId: qId, points: 10 }))
       };
+
+      // Only include testType if it's a valid backend enum value
+      const validTestTypes = ['frontend_basics', 'react_developer', 'fullstack_js', 'mobile_development', 'python_developer', 'custom'];
+      if (validTestTypes.includes(formData.testType)) {
+        updatePayload.testType = formData.testType;
+      }
 
       await apiService.updateTest(testId, updatePayload as any);
 
@@ -420,10 +422,12 @@ export default function EditTestPage() {
                     onChange={(e) => handleInputChange('testType', e.target.value)}
                     className="select w-full"
                   >
-                    <option value="practice">Practice</option>
-                    <option value="quiz">Quiz</option>
-                    <option value="exam">Exam</option>
-                    <option value="assessment">Assessment</option>
+                    <option value="custom">Custom</option>
+                    <option value="frontend_basics">Frontend Basics</option>
+                    <option value="react_developer">React Developer</option>
+                    <option value="fullstack_js">Full Stack JS</option>
+                    <option value="mobile_development">Mobile Development</option>
+                    <option value="python_developer">Python Developer</option>
                   </select>
                 </div>
               </div>
