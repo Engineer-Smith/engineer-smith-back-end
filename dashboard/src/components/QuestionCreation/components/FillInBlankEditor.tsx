@@ -40,28 +40,27 @@ const FillInBlankEditor: React.FC<FillInBlankEditorProps> = ({
       const validationResult = validateTemplateFormat(questionData.codeTemplate);
       setTemplateValidation(validationResult);
 
-      const templateBlankCount = (questionData.codeTemplate.match(/_____/g) || []).length;
+      // Extract blank IDs from {{blankId}} placeholders in the template
+      const templateBlankIds = (questionData.codeTemplate.match(/\{\{(\w+)\}\}/g) || [])
+        .map((m: string) => m.replace(/\{\{|\}\}/g, ''));
       const currentBlanks = questionData.blanks || [];
 
-      if (templateBlankCount !== currentBlanks.length && templateBlankCount > 0) {
-        const adjustedBlanks = adjustBlanksToTemplate(currentBlanks, templateBlankCount);
+      if (templateBlankIds.length !== currentBlanks.length && templateBlankIds.length > 0) {
+        const adjustedBlanks = adjustBlanksToTemplate(currentBlanks, templateBlankIds);
         onInputChange('blanks', adjustedBlanks);
       }
     }
   }, [questionData.codeTemplate]);
 
-  const adjustBlanksToTemplate = (currentBlanks: any[], templateBlankCount: number): any[] => {
-    if (templateBlankCount === currentBlanks.length) return currentBlanks;
+  const adjustBlanksToTemplate = (currentBlanks: any[], templateBlankIds: string[]): any[] => {
+    if (templateBlankIds.length === currentBlanks.length) return currentBlanks;
 
-    if (templateBlankCount > currentBlanks.length) {
-      const newBlanks = [...currentBlanks];
-      for (let i = currentBlanks.length; i < templateBlankCount; i++) {
-        newBlanks.push(createProperBlankStructure(`blank${i + 1}`, [''], false, '', 1));
-      }
-      return newBlanks;
-    } else {
-      return currentBlanks.slice(0, templateBlankCount);
-    }
+    // Build new blanks array matching the template IDs, preserving existing config where IDs match
+    const existingById = new Map(currentBlanks.map((b) => [b.id, b]));
+    return templateBlankIds.map((id, i) => {
+      if (existingById.has(id)) return existingById.get(id);
+      return createProperBlankStructure(id, [''], false, '', 1);
+    });
   };
 
   const addBlank = () => {
@@ -79,12 +78,25 @@ const FillInBlankEditor: React.FC<FillInBlankEditorProps> = ({
 
   const removeBlank = (index: number) => {
     if ((questionData.blanks?.length || 0) <= 1) return;
+    const removedBlank = questionData.blanks?.[index];
     const blanks = questionData.blanks?.filter((_, i) => i !== index) || [];
     const reIndexedBlanks = blanks.map((blank, i) => ({
       ...blank,
       id: `blank${i + 1}`
     }));
     onInputChange('blanks', reIndexedBlanks);
+
+    // Update template: remove the placeholder for the deleted blank, re-index remaining
+    if (questionData.codeTemplate && removedBlank?.id) {
+      let newTemplate = questionData.codeTemplate.replace(`{{${removedBlank.id}}}`, '');
+      // Re-index remaining placeholders to match new blank IDs
+      blanks.forEach((blank, i) => {
+        if (blank.id !== `blank${i + 1}`) {
+          newTemplate = newTemplate.replace(`{{${blank.id}}}`, `{{blank${i + 1}}}`);
+        }
+      });
+      onInputChange('codeTemplate', newTemplate);
+    }
   };
 
   const updateBlank = (index: number, field: string, value: any) => {
@@ -207,7 +219,7 @@ const FillInBlankEditor: React.FC<FillInBlankEditorProps> = ({
               {isTemplateRequired && <span className="text-red-400 ml-1">*</span>}
               <span
                 className="ml-1 text-[#6b6b70] cursor-help"
-                title="Use exactly 5 underscores (_____) to mark blanks that students will fill in. Each _____ represents one blank that needs to be configured below."
+                title="Use {{blankId}} to mark blanks (e.g., {{blank1}}, {{blank2}}). Each placeholder creates one blank that is auto-configured below."
               >
                 <HelpCircle size={14} className="inline" />
               </span>
@@ -216,13 +228,13 @@ const FillInBlankEditor: React.FC<FillInBlankEditorProps> = ({
               rows={8}
               placeholder={`// Example template:
 // Declare a variable that can be reassigned
-_____ age = 25;
+{{blank1}} age = 25;
 
 // Declare a constant
-_____ PI = 3.14159;
+{{blank2}} PI = 3.14159;
 
 // Access array element
-console.log(colors[_____]);`}
+console.log(colors[{{blank3}}]);`}
               value={questionData.codeTemplate || ''}
               onChange={(e) => onInputChange('codeTemplate', e.target.value)}
               className={`input w-full font-mono text-sm ${
@@ -252,7 +264,7 @@ console.log(colors[_____]);`}
             )}
 
             <div className="text-[#6b6b70] text-sm mt-1">
-              <strong>Tip:</strong> Each _____ (5 underscores) creates one blank. You'll configure the accepted answers for each blank below.
+              <strong>Tip:</strong> Use {'{{blankId}}'} placeholders (e.g., {'{{blank1}}'}, {'{{blank2}}'}) to create blanks. Blank configurations will auto-sync below.
             </div>
           </div>
 
@@ -262,7 +274,7 @@ console.log(colors[_____]);`}
               <div className="p-3">
                 <h6 className="text-sm text-cyan-400 mb-2">Preview (Student View)</h6>
                 <pre className="bg-[#1a1a1e] p-3 rounded mb-0 text-sm text-[#f5f5f4] font-mono overflow-auto">
-                  {questionData.codeTemplate.replace(/_____/g, '[INPUT_FIELD]')}
+                  {questionData.codeTemplate.replace(/\{\{\w+\}\}/g, '[INPUT_FIELD]')}
                 </pre>
                 <div className="text-sm text-[#6b6b70] mt-2">
                   Students will see input fields where [INPUT_FIELD] is shown.
@@ -306,7 +318,7 @@ console.log(colors[_____]);`}
             <div>
               <h6 className="font-semibold text-[#f5f5f4] mb-0">Blank Configurations</h6>
               <div className="flex items-center gap-2">
-                <small className="text-[#6b6b70]">Configure each blank (_____ in your template)</small>
+                <small className="text-[#6b6b70]">Configure each blank ({'{{blankId}}'} in your template)</small>
                 {isBlanksRequired && (
                   <span className="badge-amber text-xs">Required</span>
                 )}
@@ -338,7 +350,7 @@ console.log(colors[_____]);`}
               <div className="flex items-start">
                 <Info size={16} className="text-blue-400 mr-1" />
                 <div className="text-blue-400">
-                  Add blanks to match the _____ placeholders in your code template above.
+                  Add blanks to match the {'{{blankId}}'} placeholders in your code template above.
                   {isBlanksRequired && (
                     <div className="mt-1 text-amber-400">
                       <AlertTriangle size={12} className="mr-1 inline" />

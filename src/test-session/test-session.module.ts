@@ -14,6 +14,7 @@ import { Question, QuestionSchema } from '../schemas/question.schema';
 import { Result, ResultSchema } from '../schemas/result.schema';
 import { User, UserSchema } from '../schemas/user.schema';
 import { Organization, OrganizationSchema } from '../schemas/organization.schema';
+import { StudentTestOverride, StudentTestOverrideSchema } from '../schemas/student-test-override.schema';
 import { GradingModule } from '../grading/grading.module';
 
 @Module({
@@ -25,6 +26,7 @@ import { GradingModule } from '../grading/grading.module';
       { name: Result.name, schema: ResultSchema },
       { name: User.name, schema: UserSchema },
       { name: Organization.name, schema: OrganizationSchema },
+      { name: StudentTestOverride.name, schema: StudentTestOverrideSchema },
     ]),
     GradingModule,
   ],

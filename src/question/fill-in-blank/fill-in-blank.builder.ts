@@ -90,7 +90,7 @@ export class FillInBlankBuilder {
 
   /**
    * Set the code template with placeholders
-   * Use {{blank_id}} for blanks, e.g., "const x = {{answer1}};"
+   * Use {{blankId}} for blanks, e.g., "const x = {{blank1}};"
    */
   template(codeTemplate: string): this {
     this.dto.codeTemplate = codeTemplate;

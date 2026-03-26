@@ -114,10 +114,10 @@ const validateIndividualBlankStructure = (blank: any, index: number): { errors: 
 };
 
 /**
- * ✅ Count blank placeholders in template (_____)
+ * Count blank placeholders in template ({{blankId}})
  */
 const countTemplateBlankPlaceholders = (template: string): number => {
-  const matches = template.match(/_____/g);
+  const matches = template.match(/\{\{\w+\}\}/g);
   return matches ? matches.length : 0;
 };
 
@@ -181,18 +181,16 @@ export const validateTemplateFormat = (template: string): { isValid: boolean, er
   }
 
   const blankCount = countTemplateBlankPlaceholders(template);
-  
+
   if (blankCount === 0) {
-    errors.push('Template must contain at least one blank placeholder (_____)');
-    suggestions.push('Use exactly 5 underscores (____) to mark where students should fill in answers');
+    errors.push('Template must contain at least one blank placeholder (e.g., {{blank1}})');
+    suggestions.push('Use {{blankId}} syntax (e.g., {{blank1}}, {{blank2}}) to mark where students should fill in answers');
   }
 
-  // Check for common mistakes
-  const underscorePatterns = template.match(/_+/g) || [];
-  const invalidPatterns = underscorePatterns.filter(pattern => pattern !== '_____');
-  
-  if (invalidPatterns.length > 0) {
-    suggestions.push('Use exactly 5 underscores (____) for blanks. Found patterns with different lengths.');
+  // Check for legacy _____ format
+  const legacyBlanks = template.match(/_____/g) || [];
+  if (legacyBlanks.length > 0 && blankCount === 0) {
+    suggestions.push('Found legacy _____ placeholders. Please use {{blankId}} format instead (e.g., {{blank1}}).');
   }
 
   return {

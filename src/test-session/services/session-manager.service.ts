@@ -13,6 +13,7 @@ import { TestSession, TestSessionDocument } from '../../schemas/test-session.sch
 import { Test, TestDocument } from '../../schemas/test.schema';
 import { User, UserDocument } from '../../schemas/user.schema';
 import { Organization, OrganizationDocument } from '../../schemas/organization.schema';
+import { StudentTestOverride, StudentTestOverrideDocument } from '../../schemas/student-test-override.schema';
 import { SnapshotService } from './snapshot.service';
 import { StartTestSessionDto, TestSessionFiltersDto } from '../dto/test-session.dto';
 import type { RequestUser } from '../../auth/interfaces/jwt-payload.interface';
@@ -26,6 +27,7 @@ export class SessionManagerService {
     @InjectModel(Test.name) private testModel: Model<TestDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     @InjectModel(Organization.name) private organizationModel: Model<OrganizationDocument>,
+    @InjectModel(StudentTestOverride.name) private overrideModel: Model<StudentTestOverrideDocument>,
     private snapshotService: SnapshotService,
   ) {}
 
@@ -340,7 +342,15 @@ export class SessionManagerService {
         status: { $in: ['completed', 'abandoned', 'expired'] },
       });
 
-      if (countedAttempts >= test.settings.attemptsAllowed) {
+      // Check for extra attempts granted via overrides
+      const override = await this.overrideModel.findOne({
+        userId: user.userId,
+        testId: testId,
+      }).lean();
+      const extraAttempts = override?.extraAttempts ?? 0;
+      const totalAllowed = test.settings.attemptsAllowed + extraAttempts;
+
+      if (countedAttempts >= totalAllowed) {
         throw new ForbiddenException('Maximum attempts reached');
       }
     }

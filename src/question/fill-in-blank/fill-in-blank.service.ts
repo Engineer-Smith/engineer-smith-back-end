@@ -47,7 +47,7 @@ export class FillInBlankService {
         }
       }
 
-      // Validate all blanks exist in template
+      // Validate all blank IDs exist in template as {{blankId}} placeholders
       if (data.codeTemplate) {
         for (const blank of data.blanks) {
           if (!data.codeTemplate.includes(`{{${blank.id}}}`)) {

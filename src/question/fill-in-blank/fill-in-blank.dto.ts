@@ -42,7 +42,7 @@ export class BlankDto {
  * DTO for creating a Fill in the Blank question
  */
 export class CreateFillInBlankDto extends BaseQuestionDto {
-  // The code template with placeholders like {{blank_1}}
+  // The code template with placeholders like {{blank1}}
   @IsString()
   codeTemplate: string;
 

@@ -227,7 +227,7 @@ const AnswerInputPane: React.FC<AnswerInputPaneProps> = ({
     const blanks = question.questionData.blanks;
     const answers = currentAnswer || {};
 
-    const blankPattern = /_{5,}|___[a-zA-Z][a-zA-Z0-9]*___/g;
+    const blankPattern = /\{\{(\w+)\}\}/g;
     const elements: React.ReactElement[] = [];
     let lastIndex = 0;
     let blankIndex = 0;
@@ -243,8 +243,9 @@ const AnswerInputPane: React.FC<AnswerInputPaneProps> = ({
         );
       }
 
-      const blank = blanks[blankIndex];
-      const blankId = blank.id || `blank-${blankIndex}`;
+      const matchedId = match[1]; // captured ID from {{blankId}}
+      const blank = blanks.find((b: any) => b.id === matchedId) || blanks[blankIndex];
+      const blankId = blank.id || matchedId;
       const value = answers[blankId] || '';
 
       elements.push(
