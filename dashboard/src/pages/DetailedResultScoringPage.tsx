@@ -234,8 +234,8 @@ const DetailedResultScoringPage: React.FC<DetailedResultScoringProps> = ({ resul
                 if (typeof question.correctAnswer === 'boolean') {
                     return question.correctAnswer ? 'True' : 'False';
                 }
-                if (question.correctAnswer === 1) return 'True';
-                if (question.correctAnswer === 0) return 'False';
+                if (question.correctAnswer === 0) return 'True';
+                if (question.correctAnswer === 1) return 'False';
                 return question.correctAnswer?.toString() || 'Not specified';
 
             case 'fillInTheBlank':

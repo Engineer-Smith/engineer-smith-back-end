@@ -840,7 +840,7 @@ const ViewQuestionPage: React.FC = () => {
           {question.type === 'trueFalse' && (
             <div className="mb-6">
               <h6 className="font-medium text-[#f5f5f4] mb-3">Correct Answer:</h6>
-              {question.correctAnswer ? (
+              {question.correctAnswer === 0 ? (
                 <span className="badge-green flex items-center gap-2 w-fit">
                   <CheckCircle className="w-4 h-4" />
                   True

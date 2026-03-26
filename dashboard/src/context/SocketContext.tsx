@@ -1,5 +1,5 @@
 // src/context/SocketContext.tsx - FIXED for graceful degradation and polling-only transport
-import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import socketService from '../services/SocketService';
 import { useAuth } from './AuthContext';
@@ -188,7 +188,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const INITIAL_BACKOFF_MS = 1000;
   const MAX_BACKOFF_MS = 60000;
 
-  // Timer countdown functions (unchanged)
+  // Timer countdown functions
+  // FIXED: Use refs to avoid dependency cycles with the socket connection effect.
+  // startCountdown/stopCountdown are accessed via refs inside event handlers so the
+  // socket effect doesn't need them in its dependency array.
   const startCountdown = useCallback((initialTime: number, syncTime: number) => {
     if (countdownIntervalRef.current) {
       clearInterval(countdownIntervalRef.current);
@@ -205,12 +208,10 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           return prev;
         }
 
-        const isStillActive = newTimeRemaining > 0 && networkStatus.isOnline && connectionStatus.isConnected;
-
         return {
           ...prev,
           timeRemaining: newTimeRemaining,
-          isActive: isStillActive,
+          isActive: newTimeRemaining > 0,
         };
       });
 
@@ -228,7 +229,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       lastSyncValue: initialTime,
       countdownStartTime: startTime,
     }));
-  }, [networkStatus.isOnline, connectionStatus.isConnected]);
+  }, []);
 
   const stopCountdown = useCallback(() => {
     if (countdownIntervalRef.current) {
@@ -237,18 +238,25 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
-  // Timer state management (unchanged)
+  // Refs for countdown functions — used inside the socket effect's event handlers
+  // so the effect doesn't re-run when these callbacks change.
+  const startCountdownRef = useRef(startCountdown);
+  startCountdownRef.current = startCountdown;
+  const stopCountdownRef = useRef(stopCountdown);
+  stopCountdownRef.current = stopCountdown;
+
+  // Timer state management — pause/resume countdown based on connectivity
   useEffect(() => {
     setTimerState(prev => {
       const shouldBePaused = !networkStatus.isOnline || !connectionStatus.isConnected;
       const shouldBeActive = prev.timeRemaining > 0 && !shouldBePaused;
 
       if (shouldBePaused && !prev.isPaused && countdownIntervalRef.current) {
-        stopCountdown();
+        stopCountdownRef.current();
       }
 
       if (!shouldBePaused && prev.isPaused && prev.timeRemaining > 0) {
-        startCountdown(prev.timeRemaining, Date.now());
+        startCountdownRef.current(prev.timeRemaining, Date.now());
       }
 
       return {
@@ -257,7 +265,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         isActive: shouldBeActive,
       };
     });
-  }, [networkStatus.isOnline, connectionStatus.isConnected, startCountdown, stopCountdown]);
+  }, [networkStatus.isOnline, connectionStatus.isConnected]);
 
   // Network status updates (unchanged)
   useEffect(() => {
@@ -296,7 +304,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       // FIXED: Reset registration flag
       baseHandlersRegistered.current = false;
 
-      stopCountdown();
+      stopCountdownRef.current();
       setTimerState({
         timeRemaining: 0,
         isActive: false,
@@ -371,29 +379,24 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
               const syncTime = Date.now();
 
-              setTimerState(prev => {
-                const shouldBeActive = data.timeRemaining > 0 && networkStatus.isOnline && connectionStatus.isConnected;
-                const shouldBePaused = !networkStatus.isOnline || !connectionStatus.isConnected;
+              setTimerState(prev => ({
+                ...prev,
+                timeRemaining: data.timeRemaining,
+                serverTime: data.serverTime,
+                sectionIndex: data.sectionIndex,
+                type: data.type,
+                isActive: data.timeRemaining > 0,
+                isPaused: false,
+                currentSection: data.sectionIndex !== undefined ? {
+                  index: data.sectionIndex,
+                  name: `Section ${data.sectionIndex + 1}`
+                } : prev.currentSection,
+              }));
 
-                return {
-                  ...prev,
-                  timeRemaining: data.timeRemaining,
-                  serverTime: data.serverTime,
-                  sectionIndex: data.sectionIndex,
-                  type: data.type,
-                  isActive: shouldBeActive,
-                  isPaused: shouldBePaused,
-                  currentSection: data.sectionIndex !== undefined ? {
-                    index: data.sectionIndex,
-                    name: `Section ${data.sectionIndex + 1}`
-                  } : prev.currentSection,
-                };
-              });
-
-              if (data.timeRemaining > 0 && networkStatus.isOnline && connectionStatus.isConnected) {
-                startCountdown(data.timeRemaining, syncTime);
+              if (data.timeRemaining > 0) {
+                startCountdownRef.current(data.timeRemaining, syncTime);
               } else {
-                stopCountdown();
+                stopCountdownRef.current();
               }
 
               if (eventHandlerRefs.current.onTimerSync) {
@@ -405,7 +408,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           cleanupFunctions.push(
             socketService.onSectionExpired((data: SectionExpiredEvent) => {
 
-              stopCountdown();
+              stopCountdownRef.current();
 
               setTimerState(prev => ({
                 ...prev,
@@ -430,7 +433,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           cleanupFunctions.push(
             socketService.onTestCompleted((data: TestCompletedEvent) => {
 
-              stopCountdown();
+              stopCountdownRef.current();
               setCurrentSessionId(null);
               setTimerState({
                 timeRemaining: 0,
@@ -633,10 +636,16 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       cleanupFunctionsRef.current.forEach(cleanup => cleanup());
       cleanupFunctionsRef.current = [];
       baseHandlersRegistered.current = false;
-      stopCountdown();
+      stopCountdownRef.current();
       socketService.disconnect();
     };
-  }, [isAuthenticated, user, networkStatus.isOnline, startCountdown, stopCountdown]);
+    // FIXED: Removed startCountdown/stopCountdown from deps to break the
+    // connect→setState→newCallback→reconnect cycle that caused rapid socket churn.
+    // Event handlers inside use refs (startCountdownRef/stopCountdownRef) instead.
+    // Use user?._id (primitive) instead of user (object) to avoid reconnecting
+    // if the user object reference changes without the actual user changing.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated, user?._id, networkStatus.isOnline]);
 
   // Session management (unchanged)
   useEffect(() => {
@@ -736,7 +745,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     };
   }, []);
 
-  const value: SocketContextType = {
+  const value = useMemo<SocketContextType>(() => ({
     connectionStatus,
     isConnected: connectionStatus.isConnected,
     networkStatus,
@@ -745,7 +754,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     leaveSession,
     timerState,
     registerEventHandlers,
-  };
+  }), [connectionStatus, networkStatus, currentSessionId, joinSession, leaveSession, timerState, registerEventHandlers]);
 
   return (
     <SocketContext.Provider value={value}>

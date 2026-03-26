@@ -227,7 +227,7 @@ const AnswerInputPane: React.FC<AnswerInputPaneProps> = ({
     const blanks = question.questionData.blanks;
     const answers = currentAnswer || {};
 
-    const blankPattern = /___\w*\d*___/g;
+    const blankPattern = /_{5,}|___[a-zA-Z][a-zA-Z0-9]*___/g;
     const elements: React.ReactElement[] = [];
     let lastIndex = 0;
     let blankIndex = 0;
